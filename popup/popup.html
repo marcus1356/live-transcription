@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Translator</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+  <!-- Header: title + on/off toggle -->
+  <div class="header">
+    <div class="title">🌐 Live Translator</div>
+    <label class="toggle" title="Ativar / Desativar">
+      <input type="checkbox" id="enabled">
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <!-- Mode indicator (MVP: always Caption mode) -->
+  <div class="mode-badge">📝 Caption mode</div>
+
+  <!-- Anthropic API Key -->
+  <div class="section">
+    <label class="field-label" for="apiKey">Anthropic API Key <span class="badge">Tradução</span></label>
+    <div class="input-row">
+      <input type="password" id="apiKey" placeholder="sk-ant-..." autocomplete="off">
+      <button id="toggleKey" class="btn-icon" title="Mostrar/ocultar chave">👁</button>
+    </div>
+  </div>
+
+  <!-- OpenAI API Key -->
+  <div class="section">
+    <label class="field-label" for="openaiKey">OpenAI API Key <span class="badge openai">Whisper + GPT-4o</span></label>
+    <div class="input-row">
+      <input type="password" id="openaiKey" placeholder="sk-..." autocomplete="off">
+      <button id="toggleOpenaiKey" class="btn-icon" title="Mostrar/ocultar chave">👁</button>
+    </div>
+  </div>
+
+  <button id="save" class="btn-save">Salvar</button>
+  <button id="openApp" class="btn-output">🌐 Abrir App Tradutor</button>
+  <button id="openOutput" class="btn-output" style="margin-top:6px">↗ Histórico em Janela</button>
+  <div id="status" class="status"></div>
+
+  <div class="footer">
+    Google Meet · Teams · Zoom Web · localhost
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

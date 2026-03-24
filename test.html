@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-lt-app="true">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Translator</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:        #0a0e13;
+      --surface:   #111820;
+      --surface2:  #18222e;
+      --border:    #1e2d3d;
+      --accent:    #1d9bf0;
+      --green:     #00ba7c;
+      --red:       #f4212e;
+      --purple:    #8b5cf6;
+      --openai:    #10a37f;
+      --text:      #e7e9ea;
+      --text2:     #71767b;
+      --text3:     #3e4d5c;
+      --en-color:  #6b8299;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow: hidden; }
+
+    .app { display: grid; grid-template-rows: 52px 1fr 56px; height: 100vh; }
+
+    /* ── Header ── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; background: var(--surface); border-bottom: 1px solid var(--border); z-index: 10;
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700;
+      color: var(--accent); user-select: none; flex-shrink: 0;
+    }
+
+    .header-center { display: flex; align-items: center; gap: 8px; }
+
+    .status-pill {
+      display: flex; align-items: center; gap: 5px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px;
+      font-size: 11px; font-weight: 600; color: var(--text2); white-space: nowrap;
+    }
+    .status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); }
+    .status-pill.active { color: var(--green); border-color: rgba(0,186,124,0.25); }
+    .status-pill.active .dot { background: var(--green); animation: blink 1.4s infinite; }
+    .status-pill.mic-on  { color: var(--red);    border-color: rgba(244,33,46,0.25); }
+    .status-pill.mic-on .dot  { background: var(--red);    animation: blink 0.9s infinite; }
+    .status-pill.sys-on  { color: var(--purple); border-color: rgba(139,92,246,0.25); }
+    .status-pill.sys-on .dot  { background: var(--purple); animation: blink 1.1s infinite; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    .provider-badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 10px;
+      text-transform: uppercase; letter-spacing: 0.4px; opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .provider-badge.visible { opacity: 1; }
+    .provider-badge.claude   { background: rgba(29,155,240,0.15); color: var(--accent); }
+    .provider-badge.openai   { background: rgba(16,163,127,0.15); color: var(--openai); }
+    .provider-badge.mymemory { background: rgba(113,118,123,0.15); color: var(--text2); }
+    .provider-badge.whisper  { background: rgba(139,92,246,0.15); color: var(--purple); }
+
+    .header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+    .btn {
+      display: flex; align-items: center; gap: 5px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px; color: var(--text);
+      font-size: 12px; font-weight: 600; padding: 6px 12px; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s, color 0.15s; white-space: nowrap;
+    }
+    .btn:hover { background: #1e2d3d; border-color: var(--accent); }
+    .btn.mic-active { background: rgba(244,33,46,0.1); border-color: rgba(244,33,46,0.4); color: var(--red); }
+    .btn.sys-active { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.4); color: var(--purple); }
+    .btn-icon {
+      background: none; border: none; color: var(--text2); font-size: 15px;
+      cursor: pointer; padding: 4px; border-radius: 6px; transition: color 0.15s, background 0.15s;
+    }
+    .btn-icon:hover { color: var(--text); background: var(--surface2); }
+
+    /* ── Main feed ── */
+    main { display: flex; flex-direction: column; overflow: hidden; position: relative; }
+
+    #meet-caption {
+      position: absolute; width: 1px; height: 1px; overflow: hidden; opacity: 0; pointer-events: none;
+    }
+
+    .feed {
+      flex: 1; overflow-y: auto; padding: 16px 20px; display: flex;
+      flex-direction: column; gap: 2px; scroll-behavior: smooth;
+    }
+    .feed::-webkit-scrollbar { width: 4px; }
+    .feed::-webkit-scrollbar-track { background: transparent; }
+    .feed::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .empty-feed {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 8px; color: var(--text3); text-align: center;
+      padding: 40px; pointer-events: none;
+    }
+    .empty-feed .icon { font-size: 36px; margin-bottom: 4px; }
+    .empty-feed h3 { font-size: 15px; font-weight: 600; color: #2a3a4a; }
+    .empty-feed p  { font-size: 12px; line-height: 1.6; }
+
+    /* Translation entry */
+    .entry {
+      display: grid; grid-template-columns: 40px 1fr; gap: 0 10px;
+      padding: 9px 0; border-radius: 6px; position: relative;
+      transition: background 0.15s;
+    }
+    .entry:hover { background: rgba(255,255,255,0.02); }
+    .entry.active { background: rgba(29,155,240,0.05); }
+    .entry.active::before {
+      content: ''; position: absolute; left: 0; top: 6px; bottom: 6px;
+      width: 3px; background: var(--accent); border-radius: 3px;
+    }
+
+    .entry-time {
+      font-size: 10px; color: var(--text3); text-align: right; padding-top: 2px;
+      white-space: nowrap; font-variant-numeric: tabular-nums;
+    }
+    .entry-content { min-width: 0; }
+
+    .entry-en {
+      font-size: 12px; color: var(--en-color); line-height: 1.4; margin-bottom: 3px;
+      display: flex; gap: 5px; align-items: baseline;
+    }
+    .entry-en span { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+    .entry-pt {
+      font-size: 16px; font-weight: 500; color: var(--text); line-height: 1.45;
+      display: flex; gap: 5px; align-items: baseline;
+    }
+    .entry.active .entry-pt { font-size: 18px; color: #fff; font-weight: 600; }
+    .entry-pt.pending span:last-child { color: var(--text3); font-size: 13px; font-weight: 400; font-style: italic; }
+
+    .flag { flex-shrink: 0; font-size: 11px; opacity: 0.7; }
+    .entry.active .flag { opacity: 1; }
+
+    /* Source tag on entry */
+    .entry-source {
+      display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 5px;
+      border-radius: 6px; margin-left: 4px; vertical-align: middle; text-transform: uppercase;
+      letter-spacing: 0.3px; opacity: 0.7;
+    }
+    .src-whisper { background: rgba(139,92,246,0.15); color: var(--purple); }
+    .src-mic     { background: rgba(244,33,46,0.12);  color: var(--red); }
+
+    /* Interim bar */
+    .interim-bar {
+      display: none; align-items: center; gap: 8px; padding: 7px 20px;
+      border-top: 1px solid transparent; font-size: 12px; color: #aaa;
+      font-style: italic; flex-shrink: 0;
+    }
+    .interim-bar.visible { display: flex; }
+    .interim-bar.mic-bar  { background: rgba(244,33,46,0.05); border-color: rgba(244,33,46,0.12); }
+    .interim-bar.sys-bar  { background: rgba(139,92,246,0.05); border-color: rgba(139,92,246,0.12); }
+    .rec-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; animation: blink 0.9s infinite; }
+    .mic-bar .rec-dot { background: var(--red); }
+    .sys-bar .rec-dot { background: var(--purple); }
+
+    /* ── Footer ── */
+    footer {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; background: var(--surface); border-top: 1px solid var(--border);
+      gap: 10px; flex-shrink: 0;
+    }
+    .footer-left  { display: flex; align-items: center; gap: 6px; }
+    .footer-right { display: flex; align-items: center; gap: 6px; }
+
+    select.speed-sel {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
+      font-size: 12px; padding: 4px 8px; border-radius: 7px; cursor: pointer;
+    }
+    .btn-sm {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
+      font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 7px;
+      cursor: pointer; transition: color 0.15s, background 0.15s; white-space: nowrap;
+    }
+    .btn-sm:hover { color: var(--text); background: #1e2d3d; }
+    .btn-sm.primary { background: var(--accent); color: #fff; border-color: transparent; }
+    .btn-sm.primary:hover { opacity: 0.88; }
+    .btn-sm.running { background: rgba(244,33,46,0.12); color: var(--red); border-color: rgba(244,33,46,0.3); }
+
+    /* Phrases drawer */
+    .phrases-drawer {
+      position: fixed; bottom: 56px; left: 0; right: 0;
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 10px 16px 14px; transform: translateY(100%);
+      transition: transform 0.25s ease; z-index: 20;
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 5px;
+    }
+    .phrases-drawer.open { transform: translateY(0); }
+    .phrase-btn {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text2);
+      font-size: 12px; padding: 7px 10px; border-radius: 8px; text-align: left;
+      cursor: pointer; line-height: 1.4; transition: background 0.15s, color 0.15s, border-color 0.15s;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .phrase-btn:hover { background: #1e2d3d; color: var(--text); border-color: var(--accent); }
+    .phrase-btn.active { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="logo">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="#1d9bf0" stroke-width="1.5"/>
+        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#1d9bf0" stroke-width="1.5"/>
+      </svg>
+      Live Translator
+    </div>
+
+    <div class="header-center">
+      <div class="status-pill" id="statusPill">
+        <span class="dot"></span>
+        <span id="statusLabel">aguardando</span>
+      </div>
+      <span class="provider-badge" id="providerBadge"></span>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn" id="sysBtn" onclick="toggleSystemAudio()">
+        <span id="sysIcon">🖥</span>
+        <span id="sysLabel">Áudio do Sistema</span>
+      </button>
+      <button class="btn" id="micBtn" onclick="toggleMic()">
+        <span id="micIcon">🎤</span>
+        <span id="micLabel">Microfone</span>
+      </button>
+      <button class="btn-icon" title="Limpar histórico" onclick="clearFeed()">🗑</button>
+    </div>
+  </header>
+
+  <!-- ── Main feed ── -->
+  <main>
+    <!-- Hidden: extension caption detection hook -->
+    <div id="meet-caption" aria-live="polite" aria-atomic="false" role="region"></div>
+    <!-- Hidden: extension writes translation here -->
+    <div id="lt-test-translation" style="display:none"></div>
+
+    <div class="feed" id="feed">
+      <div class="empty-feed" id="emptyFeed">
+        <div class="icon">🎧</div>
+        <h3>Pronto para traduzir</h3>
+        <p>
+          <strong>Microfone</strong> — fale em inglês e veja a tradução<br>
+          <strong>Áudio do Sistema</strong> — captura o que você ouve no fone<br>
+          <strong>Exemplos</strong> — teste sem microfone
+        </p>
+      </div>
+    </div>
+
+    <div class="interim-bar mic-bar" id="micInterimBar">
+      <span class="rec-dot"></span>
+      <span id="micInterimText">ouvindo...</span>
+    </div>
+    <div class="interim-bar sys-bar" id="sysInterimBar">
+      <span class="rec-dot"></span>
+      <span id="sysInterimText">transcrevendo com Whisper...</span>
+    </div>
+  </main>
+
+  <!-- ── Footer controls ── -->
+  <footer>
+    <div class="footer-left">
+      <button class="btn-sm" onclick="togglePhrases()">📋 Exemplos</button>
+      <button class="btn-sm primary" id="autoBtn" onclick="toggleAuto()">▶ Auto-play</button>
+      <select class="speed-sel" id="speed">
+        <option value="4000">Lento</option>
+        <option value="2500" selected>Normal</option>
+        <option value="1500">Rápido</option>
+      </select>
+    </div>
+    <div class="footer-right">
+      <span id="entryCount" style="font-size:11px;color:var(--text3)"></span>
+    </div>
+  </footer>
+</div>
+
+<!-- ── Phrases drawer ── -->
+<div class="phrases-drawer" id="phrasesDrawer">
+  <button class="phrase-btn" onclick="firePhrase(this)">Today we'll study the present perfect tense and its uses in everyday English.</button>
+  <button class="phrase-btn" onclick="firePhrase(this)">Can anyone tell me the difference between "I did" and "I have done"?</button>
+  <button class="phrase-btn" onclick="firePhrase(this)">The present perfect connects the past to the present moment in time.</button>
+  <button class="phrase-btn" onclick="firePhrase(this)">For example: I have lived here for ten years means I still live here now.</button>
+  <button class="phrase-btn" onclick="firePhrase(this)">Artificial intelligence is transforming the way we learn languages today.</button>
+  <button class="phrase-btn" onclick="firePhrase(this)">Now let's practice with some exercises. Open your books to page forty-two.</button>
+  <button class="phrase-btn" onclick="firePhrase(this)">Remember to use the present perfect with already, yet, and just.</button>
+  <button class="phrase-btn" onclick="firePhrase(this)">Great job everyone! See you next Thursday for our conversation practice.</button>
+</div>
+
+<script>
+  // ── Key loading (safe: works outside extension context too) ─────────────────
+  let cachedKeys = { apiKey: null, openaiKey: null };
+
+  function loadKeys() {
+    return new Promise(resolve => {
+      if (typeof chrome === 'undefined' || !chrome.storage) return resolve(cachedKeys);
+      chrome.storage.sync.get(['apiKey', 'openaiKey'], data => {
+        cachedKeys = { apiKey: data.apiKey || null, openaiKey: data.openaiKey || null };
+        resolve(cachedKeys);
+      });
+    });
+  }
+
+  loadKeys();
+
+  if (typeof chrome !== 'undefined' && chrome.storage) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'sync') loadKeys();
+    });
+  }
+
+  // ── Feed management ─────────────────────────────────────────────────────────
+  const feedEl   = document.getElementById('feed');
+  const emptyEl  = document.getElementById('emptyFeed');
+  const countEl  = document.getElementById('entryCount');
+  let entries    = [];
+  let currentEl  = null;
+  let autoScroll = true;
+
+  feedEl.addEventListener('scroll', () => {
+    autoScroll = feedEl.scrollHeight - feedEl.scrollTop - feedEl.clientHeight < 60;
+  });
+
+  function nowStr() {
+    return new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  }
+
+  function addEntry(en, sourceTag) {
+    emptyEl.style.display = 'none';
+    if (currentEl) currentEl.classList.remove('active');
+
+    const tag = sourceTag ? `<span class="entry-source ${sourceTag === 'whisper' ? 'src-whisper' : 'src-mic'}">${sourceTag}</span>` : '';
+    const el  = document.createElement('div');
+    el.className = 'entry active';
+    el.innerHTML =
+      '<div class="entry-time">' + nowStr() + '</div>' +
+      '<div class="entry-content">' +
+        '<div class="entry-en"><span class="flag">🇺🇸</span><span>' + esc(en) + '</span>' + tag + '</div>' +
+        '<div class="entry-pt pending"><span class="flag">🇧🇷</span><span>traduzindo...</span></div>' +
+      '</div>';
+
+    feedEl.appendChild(el);
+    currentEl = el;
+    entries.push(el);
+    if (entries.length > 200) feedEl.removeChild(entries.shift());
+    if (autoScroll) feedEl.scrollTop = feedEl.scrollHeight;
+    countEl.textContent = entries.length + ' entrada' + (entries.length !== 1 ? 's' : '');
+    setStatus('active');
+    return el;
+  }
+
+  function updatePT(el, pt) {
+    if (!el) return;
+    const d = el.querySelector('.entry-pt');
+    if (!d) return;
+    d.className = 'entry-pt';
+    d.innerHTML = '<span class="flag">🇧🇷</span><span>' + esc(pt) + '</span>';
+    if (autoScroll) feedEl.scrollTop = feedEl.scrollHeight;
+  }
+
+  function clearFeed() {
+    entries.forEach(e => e.remove());
+    entries = []; currentEl = null;
+    emptyEl.style.display = '';
+    countEl.textContent = '';
+    setStatus('idle');
+  }
+
+  function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+  // ── Status + provider ───────────────────────────────────────────────────────
+  let statusTimer = null;
+  const PROVIDER_LABELS = { claude: 'Claude', openai: 'OpenAI', mymemory: 'MyMemory', whisper: 'Whisper' };
+
+  function setStatus(state) {
+    const pill  = document.getElementById('statusPill');
+    const label = document.getElementById('statusLabel');
+    clearTimeout(statusTimer);
+    if (state === 'active') {
+      pill.className = 'status-pill active';
+      label.textContent = 'traduzindo';
+      statusTimer = setTimeout(() => setStatus(micActive ? 'mic' : sysActive ? 'sys' : 'idle'), 5000);
+    } else if (state === 'mic') {
+      pill.className = 'status-pill mic-on';
+      label.textContent = 'microfone ativo';
+    } else if (state === 'sys') {
+      pill.className = 'status-pill sys-on';
+      label.textContent = 'áudio do sistema';
+    } else {
+      pill.className = 'status-pill';
+      label.textContent = 'aguardando';
+    }
+  }
+
+  function showProvider(provider) {
+    const badge = document.getElementById('providerBadge');
+    badge.textContent = PROVIDER_LABELS[provider] || provider;
+    badge.className = 'provider-badge visible ' + (provider || '');
+    clearTimeout(badge._timer);
+    badge._timer = setTimeout(() => badge.classList.remove('visible'), 5000);
+  }
+
+  // ── Watch #lt-test-translation (written by content.js) ─────────────────────
+  const translationEl = document.getElementById('lt-test-translation');
+  new MutationObserver(() => {
+    const pt = translationEl.textContent.trim();
+    if (!pt || pt === 'traduzindo...') return;
+    if (currentEl && currentEl.querySelector('.entry-pt.pending')) updatePT(currentEl, pt);
+  }).observe(translationEl, { characterData: true, childList: true, subtree: true });
+
+  // ── Translation ─────────────────────────────────────────────────────────────
+  let inFlight = false;
+  let lastSent = '';
+
+  async function sendForTranslation(text, sourceTag) {
+    if (!text || text === lastSent || inFlight) return;
+    inFlight = true;
+    lastSent = text;
+    const el   = addEntry(text, sourceTag);
+    const keys = cachedKeys;
+
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      // Outside extension context — show text without translation
+      inFlight = false;
+      updatePT(el, '(extensão não detectada)');
+      return;
+    }
+
+    chrome.runtime.sendMessage(
+      { action: 'translate', text, apiKey: keys.apiKey, openaiKey: keys.openaiKey },
+      (res) => {
+        inFlight = false;
+        if (chrome.runtime.lastError || !res) return;
+        updatePT(el, res.success ? res.translation : '⚠ ' + res.error);
+        if (res.success && res.provider) showProvider(res.provider);
+      }
+    );
+  }
+
+  // ── Mic ─────────────────────────────────────────────────────────────────────
+  // Uses getUserMedia (triggers permission dialog) + Whisper when key available,
+  // falls back to Web Speech API otherwise.
+  let micActive    = false;
+  let micStream    = null;
+  let micRecorder  = null;
+  let recognition  = null;
+  let micDebounce  = null;
+  let lastInterim  = '';
+
+  function toggleMic() { micActive ? stopMic() : startMic(); }
+
+  async function startMic() {
+    if (sysActive) stopSystemAudio();
+
+    // Show pending state immediately so the user sees feedback
+    document.getElementById('micBtn').classList.add('mic-active');
+    document.getElementById('micIcon').textContent = '⏳';
+    document.getElementById('micLabel').textContent = 'aguardando...';
+
+    if (cachedKeys.openaiKey) {
+      // ── Whisper path: getUserMedia → MediaRecorder → Whisper ──
+      try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        _micUiIdle();
+        if (err.name === 'NotAllowedError') alert('Permissão de microfone negada. Autorize nas configurações do site.');
+        else alert('Erro de microfone: ' + err.message);
+        return;
+      }
+
+      micActive = true;
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus' : 'audio/webm';
+      micRecorder = new MediaRecorder(micStream, { mimeType });
+
+      micRecorder.ondataavailable = (e) => {
+        if (e.data.size < 500) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result.split(',')[1];
+          chrome.runtime.sendMessage(
+            { action: 'transcribe', audioData: base64, mimeType, openaiKey: cachedKeys.openaiKey },
+            (res) => {
+              if (chrome.runtime.lastError || !res?.success) return;
+              const text = res.text?.trim();
+              if (text && text.length > 3) sendForTranslation(text, 'mic');
+            }
+          );
+        };
+        reader.readAsDataURL(e.data);
+      };
+
+      micRecorder.start(3000); // 3-second chunks
+      micStream.getAudioTracks()[0].onended = () => stopMic();
+
+      document.getElementById('micIcon').textContent = '⏹';
+      document.getElementById('micLabel').textContent = 'Parar';
+      document.getElementById('micInterimBar').classList.add('visible');
+      document.getElementById('micInterimText').textContent = 'transcrevendo com Whisper...';
+      setStatus('mic');
+
+    } else {
+      // ── Web Speech API fallback ──
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { _micUiIdle(); alert('Use o Chrome ou adicione uma OpenAI API Key para reconhecimento de voz.'); return; }
+
+      recognition = new SR();
+      recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true;
+
+      recognition.onstart = () => {
+        micActive = true;
+        document.getElementById('micIcon').textContent = '⏹';
+        document.getElementById('micLabel').textContent = 'Parar';
+        document.getElementById('micInterimBar').classList.add('visible');
+        setStatus('mic');
+      };
+      recognition.onresult = (event) => {
+        let interim = '', final = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const t = event.results[i][0].transcript;
+          event.results[i].isFinal ? (final += t) : (interim += t);
+        }
+        document.getElementById('micInterimText').textContent = (final || interim).trim() || 'ouvindo...';
+        if (final.trim().length > 3) {
+          clearTimeout(micDebounce); lastInterim = '';
+          sendForTranslation(final.trim(), 'mic');
+          document.getElementById('micInterimText').textContent = 'ouvindo...';
+        } else if (interim.trim().length > 3 && interim.trim() !== lastInterim) {
+          lastInterim = interim.trim();
+          clearTimeout(micDebounce);
+          micDebounce = setTimeout(() => {
+            if (!lastInterim) return;
+            sendForTranslation(lastInterim, 'mic'); lastInterim = '';
+            document.getElementById('micInterimText').textContent = 'ouvindo...';
+          }, 420);
+        }
+      };
+      recognition.onerror = (e) => {
+        if (e.error === 'not-allowed') { alert('Permissão de microfone negada.'); stopMic(); }
+        else if (e.error !== 'no-speech') console.warn('mic:', e.error);
+      };
+      recognition.onend = () => { if (micActive) recognition.start(); };
+      recognition.start();
+    }
+  }
+
+  function stopMic() {
+    micActive = false;
+    clearTimeout(micDebounce);
+    if (micRecorder) { try { micRecorder.stop(); } catch(_){} micRecorder = null; }
+    if (micStream)   { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (recognition) { recognition.onend = null; recognition.stop(); recognition = null; }
+    _micUiIdle();
+    setStatus('idle');
+  }
+
+  function _micUiIdle() {
+    document.getElementById('micBtn').classList.remove('mic-active');
+    document.getElementById('micIcon').textContent = '🎤';
+    document.getElementById('micLabel').textContent = 'Microfone';
+    document.getElementById('micInterimBar').classList.remove('visible');
+  }
+
+  // ── System Audio (getDisplayMedia → Whisper) ────────────────────────────────
+  let sysStream   = null;
+  let sysRecorder = null;
+  let sysAudioCtx = null;
+  let sysActive   = false;
+
+  function toggleSystemAudio() { sysActive ? stopSystemAudio() : startSystemAudio(); }
+
+  async function startSystemAudio() {
+    if (micActive) stopMic();
+
+    // Use cachedKeys directly — cannot await before getDisplayMedia (breaks user gesture)
+    if (!cachedKeys.openaiKey) {
+      alert('Configure a OpenAI API Key no popup da extensão para usar o Áudio do Sistema (Whisper).');
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      alert('getDisplayMedia não disponível neste contexto.');
+      return;
+    }
+
+    try {
+      // getDisplayMedia: grab audio + minimal video (spec requires video)
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false },
+        video: { width: 1, height: 1, frameRate: 1 },
+      });
+
+      // Stop video tracks immediately
+      stream.getVideoTracks().forEach(t => t.stop());
+
+      const audioTracks = stream.getAudioTracks();
+      if (audioTracks.length === 0) {
+        alert('Nenhum áudio capturado.\n\nNa janela de seleção, ative "Compartilhar áudio do sistema" (Windows) ou selecione uma aba com áudio.');
+        return;
+      }
+
+      // Route through AudioContext → audio-only MediaStream
+      sysAudioCtx = new AudioContext({ sampleRate: 16000 });
+      const src  = sysAudioCtx.createMediaStreamSource(stream);
+      const dest = sysAudioCtx.createMediaStreamDestination();
+      src.connect(dest);
+      sysStream = stream;
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus' : 'audio/webm';
+
+      sysRecorder = new MediaRecorder(dest.stream, { mimeType });
+
+      sysRecorder.ondataavailable = (e) => {
+        if (e.data.size < 500) return; // skip empty chunks
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result.split(',')[1];
+          showProvider('whisper');
+          chrome.runtime.sendMessage(
+            { action: 'transcribe', audioData: base64, mimeType, openaiKey: cachedKeys.openaiKey },
+            (res) => {
+              if (chrome.runtime.lastError || !res?.success) return;
+              const text = res.text?.trim();
+              if (text && text.length > 3) sendForTranslation(text, 'whisper');
+            }
+          );
+        };
+        reader.readAsDataURL(e.data);
+      };
+
+      sysRecorder.start(5000); // 5-second chunks
+
+      // Handle user stopping screen share
+      audioTracks[0].onended = () => stopSystemAudio();
+
+      sysActive = true;
+      document.getElementById('sysBtn').classList.add('sys-active');
+      document.getElementById('sysIcon').textContent = '⏹';
+      document.getElementById('sysLabel').textContent = 'Parar';
+      document.getElementById('sysInterimBar').classList.add('visible');
+      setStatus('sys');
+
+    } catch (err) {
+      console.error('[LT] sys audio:', err.name, err.message);
+      if (err.name === 'NotAllowedError') {
+        alert('Permissão negada. Clique em "Compartilhar" na janela de seleção.');
+      } else if (err.name === 'NotSupportedError') {
+        alert('Seu navegador não suporta captura de áudio do sistema.');
+      } else {
+        alert('Erro ao capturar áudio: ' + err.name + ' — ' + err.message);
+      }
+    }
+  }
+
+  function stopSystemAudio() {
+    sysActive = false;
+    if (sysRecorder) { try { sysRecorder.stop(); } catch(_){} sysRecorder = null; }
+    if (sysStream)   { sysStream.getTracks().forEach(t => t.stop()); sysStream = null; }
+    if (sysAudioCtx) { sysAudioCtx.close().catch(()=>{}); sysAudioCtx = null; }
+    document.getElementById('sysBtn').classList.remove('sys-active');
+    document.getElementById('sysIcon').textContent = '🖥';
+    document.getElementById('sysLabel').textContent = 'Áudio do Sistema';
+    document.getElementById('sysInterimBar').classList.remove('visible');
+    setStatus('idle');
+  }
+
+  // ── Caption simulation (Exemplos) ───────────────────────────────────────────
+  const captionEl = document.getElementById('meet-caption');
+  let typingTimer = null;
+
+  function setCaption(text) {
+    clearTimeout(typingTimer);
+    const words = text.trim().split(' ');
+    let i = 0, current = '';
+    function next() {
+      if (i >= words.length) return;
+      current += (i > 0 ? ' ' : '') + words[i++];
+      captionEl.textContent = current;
+      typingTimer = setTimeout(next, 65);
+    }
+    next();
+  }
+
+  const PHRASES = [
+    "Today we'll study the present perfect tense and its uses in everyday English.",
+    "Can anyone tell me the difference between I did and I have done?",
+    "The present perfect connects the past to the present moment in time.",
+    "For example, I have lived here for ten years means I still live here now.",
+    "Artificial intelligence is transforming the way we learn languages today.",
+    "Now let's practice with some exercises. Open your books to page forty-two.",
+    "Remember to use the present perfect with already, yet, and just.",
+    "Great job everyone! See you next Thursday for our conversation practice.",
+  ];
+
+  let autoInterval = null, phraseIdx = 0;
+
+  function toggleAuto() { autoInterval ? stopAuto() : startAuto(); }
+  function startAuto() {
+    const btn = document.getElementById('autoBtn');
+    btn.textContent = '⏹ Parar'; btn.classList.add('running');
+    playNext();
+    autoInterval = setInterval(playNext, parseInt(document.getElementById('speed').value));
+  }
+  function stopAuto() {
+    clearInterval(autoInterval); autoInterval = null;
+    const btn = document.getElementById('autoBtn');
+    btn.textContent = '▶ Auto-play'; btn.classList.remove('running');
+  }
+  function playNext() {
+    setCaption(PHRASES[phraseIdx++ % PHRASES.length]);
+    document.querySelectorAll('.phrase-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.phrase-btn')[(phraseIdx - 1) % PHRASES.length]?.classList.add('active');
+  }
+  function firePhrase(btn) {
+    document.querySelectorAll('.phrase-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    setCaption(btn.textContent.trim());
+  }
+
+  let phrasesOpen = false;
+  function togglePhrases() {
+    phrasesOpen = !phrasesOpen;
+    document.getElementById('phrasesDrawer').classList.toggle('open', phrasesOpen);
+  }
+</script>
+
+</body>
+</html>

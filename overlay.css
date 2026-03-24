@@ -1,0 +1,208 @@
+/* ── Live Translator — Panel ───────────────────────────────────────────────── */
+
+#lt-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 360px;
+  height: 500px;
+  background: #0f1419;
+  border: 1px solid #2f3336;
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.65);
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  overflow: hidden;
+  transition: width 0.2s, height 0.2s;
+  resize: both;
+}
+
+#lt-panel.lt-expanded {
+  width: 520px;
+  height: 680px;
+}
+
+/* ── Header ── */
+#lt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #16202a;
+  border-bottom: 1px solid #2f3336;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+#lt-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1d9bf0;
+  letter-spacing: 0.2px;
+}
+
+#lt-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+#lt-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #3e4447;
+  margin-right: 4px;
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+#lt-status-dot.on {
+  background: #00ba7c;
+  animation: lt-pulse 1.5s infinite;
+}
+@keyframes lt-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+#lt-mic-btn,
+#lt-toggle-size,
+#lt-close {
+  background: none;
+  border: none;
+  color: #71767b;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: 5px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+#lt-mic-btn:hover     { color: #e7e9ea; background: #2f3336; }
+#lt-toggle-size:hover { color: #e7e9ea; background: #2f3336; }
+#lt-close:hover       { color: #f4212e; background: rgba(244,33,46,0.1); }
+
+#lt-mic-btn.lt-mic-on {
+  color: #f4212e;
+  background: rgba(244,33,46,0.15);
+  animation: lt-mic-blink 1s infinite;
+}
+@keyframes lt-mic-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* ── Mic active bar ── */
+#lt-mic-bar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  background: rgba(244,33,46,0.07);
+  border-bottom: 1px solid rgba(244,33,46,0.18);
+  flex-shrink: 0;
+}
+#lt-mic-indicator { font-size: 9px; flex-shrink: 0; }
+#lt-mic-interim {
+  color: #aaa;
+  font-size: 11px;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* ── History scroll area ── */
+#lt-history {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scroll-behavior: smooth;
+}
+#lt-history::-webkit-scrollbar { width: 3px; }
+#lt-history::-webkit-scrollbar-track { background: transparent; }
+#lt-history::-webkit-scrollbar-thumb { background: #2f3336; border-radius: 3px; }
+
+/* ── Entry ── */
+.lt-entry {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border-left: 2px solid transparent;
+  background: transparent;
+  transition: background 0.2s, border-color 0.2s;
+  animation: lt-slide 0.18s ease;
+}
+@keyframes lt-slide {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.lt-entry:hover {
+  background: rgba(255,255,255,0.03);
+}
+.lt-entry.lt-active {
+  border-left-color: #1d9bf0;
+  background: rgba(29,155,240,0.06);
+}
+
+/* EN line */
+.lt-en {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  font-size: 11px;
+  color: #555e67;
+  line-height: 1.35;
+  margin-bottom: 3px;
+}
+.lt-en span:last-child {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* PT line */
+.lt-pt {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+  font-size: 14px;
+  font-weight: 500;
+  color: #e7e9ea;
+  line-height: 1.4;
+}
+.lt-entry.lt-active .lt-pt {
+  color: #fff;
+  font-size: 15px;
+}
+.lt-pt.lt-pending span:last-child {
+  color: #3e4447;
+  font-weight: 400;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.lt-flag { flex-shrink: 0; font-size: 10px; opacity: 0.8; }
+.lt-entry.lt-active .lt-flag { opacity: 1; }
+
+/* ── Empty state ── */
+#lt-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: #2a3540;
+  font-size: 12px;
+  text-align: center;
+  padding: 20px;
+  line-height: 1.5;
+}
+#lt-empty div:first-child { font-size: 26px; margin-bottom: 4px; }

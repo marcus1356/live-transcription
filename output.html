@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Live Translator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0f1419;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ── */
+    .bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 14px;
+      background: #16202a;
+      border-bottom: 1px solid #2f3336;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .bar-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #1d9bf0;
+      letter-spacing: 0.3px;
+    }
+    .bar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bar-status {
+      font-size: 11px;
+      color: #71767b;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #3e4447;
+      flex-shrink: 0;
+    }
+    .dot.on { background: #00ba7c; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .btn-clear {
+      background: none;
+      border: 1px solid #2f3336;
+      border-radius: 6px;
+      color: #71767b;
+      font-size: 11px;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .btn-clear:hover { color: #f4212e; border-color: #f4212e; }
+
+    /* ── History list ── */
+    .history {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scroll-behavior: smooth;
+    }
+
+    /* Custom scrollbar */
+    .history::-webkit-scrollbar { width: 4px; }
+    .history::-webkit-scrollbar-track { background: transparent; }
+    .history::-webkit-scrollbar-thumb { background: #2f3336; border-radius: 4px; }
+
+    /* ── Entry card ── */
+    .entry {
+      background: #16202a;
+      border: 1px solid #2f3336;
+      border-radius: 10px;
+      padding: 10px 14px;
+      transition: border-color 0.3s;
+      animation: slideIn 0.25s ease;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Active (latest) entry */
+    .entry.active {
+      border-color: #1d9bf0;
+      background: rgba(29,155,240,0.06);
+    }
+
+    .entry-en {
+      font-size: 12px;
+      color: #71767b;
+      font-style: italic;
+      line-height: 1.4;
+      margin-bottom: 6px;
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+    }
+    .entry-pt {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e7e9ea;
+      line-height: 1.4;
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+    }
+    .entry.active .entry-pt { color: #fff; font-size: 18px; }
+
+    .flag { flex-shrink: 0; }
+
+    /* "traduzindo..." state */
+    .entry-pt.pending {
+      color: #3e4447;
+      font-size: 14px;
+      font-weight: 400;
+      font-style: italic;
+    }
+    .entry-pt.pending::after {
+      content: '';
+      display: inline-block;
+      width: 14px;
+      animation: dots 1.2s infinite;
+    }
+    @keyframes dots {
+      0%   { content: ''; }
+      33%  { content: '.'; }
+      66%  { content: '..'; }
+      100% { content: '...'; }
+    }
+
+    .entry-time {
+      font-size: 10px;
+      color: #3e4447;
+      margin-top: 6px;
+      text-align: right;
+    }
+
+    /* ── Empty state ── */
+    .empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #2a3540;
+      gap: 8px;
+      padding: 20px;
+      text-align: center;
+    }
+    .empty-icon { font-size: 32px; }
+    .empty-text { font-size: 13px; line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+  <div class="bar">
+    <span class="bar-title">🌐 Live Translator — Histórico</span>
+    <div class="bar-right">
+      <span class="bar-status">
+        <span class="dot" id="statusDot"></span>
+        <span id="statusText">aguardando...</span>
+      </span>
+      <button class="btn-clear" onclick="clearHistory()">Limpar</button>
+    </div>
+  </div>
+
+  <div class="history" id="history">
+    <div class="empty" id="emptyState">
+      <span class="empty-icon">🎧</span>
+      <span class="empty-text">As traduções aparecerão aqui.<br>Inicie a reunião e ative as legendas.</span>
+    </div>
+  </div>
+
+  <script>
+    const historyEl = document.getElementById('history');
+    const emptyEl   = document.getElementById('emptyState');
+    const dotEl     = document.getElementById('statusDot');
+    const statusEl  = document.getElementById('statusText');
+
+    let entries = []; // { id, en, pt, time }
+    let activeId = null;
+    let hideTimer = null;
+    let autoScroll = true;
+
+    // ── Auto-scroll: pause if user scrolls up ──────────────────────────────
+    historyEl.addEventListener('scroll', () => {
+      const atBottom = historyEl.scrollHeight - historyEl.scrollTop - historyEl.clientHeight < 40;
+      autoScroll = atBottom;
+    });
+
+    function scrollToBottom() {
+      if (autoScroll) {
+        historyEl.scrollTop = historyEl.scrollHeight;
+      }
+    }
+
+    // ── Render ─────────────────────────────────────────────────────────────
+    function renderEntry(entry) {
+      const existing = document.getElementById('entry-' + entry.id);
+      if (existing) {
+        // Update in place
+        const ptEl = existing.querySelector('.entry-pt');
+        if (entry.pt) {
+          ptEl.className = 'entry-pt';
+          ptEl.innerHTML = '<span class="flag">🇧🇷</span><span>' + escHtml(entry.pt) + '</span>';
+        }
+        existing.classList.toggle('active', entry.id === activeId);
+        return;
+      }
+
+      // New entry
+      emptyEl.style.display = 'none';
+
+      const div = document.createElement('div');
+      div.className = 'entry' + (entry.id === activeId ? ' active' : '');
+      div.id = 'entry-' + entry.id;
+
+      const ptContent = entry.pt
+        ? '<span class="flag">🇧🇷</span><span>' + escHtml(entry.pt) + '</span>'
+        : '<span class="flag">🇧🇷</span><span>traduzindo</span>';
+
+      div.innerHTML =
+        '<div class="entry-en"><span class="flag">🇺🇸</span><span>' + escHtml(entry.en) + '</span></div>' +
+        '<div class="entry-pt ' + (entry.pt ? '' : 'pending') + '">' + ptContent + '</div>' +
+        '<div class="entry-time">' + entry.time + '</div>';
+
+      historyEl.appendChild(div);
+      scrollToBottom();
+    }
+
+    function renderAll() {
+      // Clear all except empty state
+      [...historyEl.querySelectorAll('.entry')].forEach(e => e.remove());
+      if (entries.length === 0) {
+        emptyEl.style.display = '';
+        return;
+      }
+      emptyEl.style.display = 'none';
+      entries.forEach(renderEntry);
+      scrollToBottom();
+    }
+
+    // ── New translation received ───────────────────────────────────────────
+    function onTranslation(en, pt) {
+      const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      // If same EN as active entry, update it
+      if (activeId !== null) {
+        const active = entries.find(e => e.id === activeId);
+        if (active && active.en === en) {
+          active.pt = pt;
+          renderEntry(active);
+          setStatus('ativo');
+          return;
+        }
+      }
+
+      // New entry
+      const id = Date.now();
+      activeId = id;
+      entries.push({ id, en, pt, time: now });
+
+      // Keep max 200 entries
+      if (entries.length > 200) {
+        entries.shift();
+        renderAll();
+      } else {
+        renderEntry({ id, en, pt, time: now });
+      }
+
+      setStatus('ativo');
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => setStatus('aguardando'), 8000);
+    }
+
+    // ── Status ─────────────────────────────────────────────────────────────
+    function setStatus(state) {
+      if (state === 'ativo') {
+        dotEl.className = 'dot on';
+        statusEl.textContent = 'traduzindo em tempo real';
+      } else {
+        dotEl.className = 'dot';
+        statusEl.textContent = 'aguardando...';
+      }
+    }
+
+    // ── Clear ──────────────────────────────────────────────────────────────
+    function clearHistory() {
+      entries = [];
+      activeId = null;
+      [...historyEl.querySelectorAll('.entry')].forEach(e => e.remove());
+      emptyEl.style.display = '';
+      chrome.storage.local.remove('liveTranslation');
+    }
+
+    // ── Storage listener ───────────────────────────────────────────────────
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local') return;
+      if (changes.liveTranslation) {
+        const { en, pt } = changes.liveTranslation.newValue || {};
+        if (en) onTranslation(en, pt || '');
+      }
+    });
+
+    // Load any existing translation on open
+    chrome.storage.local.get('liveTranslation', ({ liveTranslation }) => {
+      if (liveTranslation?.en) onTranslation(liveTranslation.en, liveTranslation.pt || '');
+    });
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+    function escHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+  </script>
+
+</body>
+</html>

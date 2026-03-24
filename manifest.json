@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Live Transcription Translator",
+  "version": "1.0.0",
+  "description": "Tradução simultânea EN→PT em tempo real",
+  "permissions": ["storage", "activeTab", "tabCapture", "windows", "tabs"],
+  "host_permissions": [
+    "https://meet.google.com/*",
+    "https://teams.microsoft.com/*",
+    "https://zoom.us/*",
+    "https://api.anthropic.com/*",
+    "https://api.openai.com/*",
+    "https://api.mymemory.translated.net/*",
+    "http://localhost/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": [
+      "https://meet.google.com/*",
+      "https://teams.microsoft.com/*",
+      "https://zoom.us/*",
+      "http://localhost/*"
+    ],
+    "js": ["content.js"],
+    "css": ["overlay.css"],
+    "run_at": "document_idle"
+  }],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Live Translator"
+  }
+}
