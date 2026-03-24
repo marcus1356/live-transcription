@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Translator — Traduza aulas em inglês em tempo real</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:       #060c14;
+      --surface:  #0d1620;
+      --surface2: #131f2e;
+      --border:   #1a2b3d;
+      --accent:   #1d9bf0;
+      --accent2:  #0070d4;
+      --green:    #00ba7c;
+      --purple:   #8b5cf6;
+      --openai:   #10a37f;
+      --text:     #e7e9ea;
+      --text2:    #8b9eb0;
+      --text3:    #3a5068;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Utilities ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(29,155,240,0.1); border: 1px solid rgba(29,155,240,0.25);
+      color: var(--accent); border-radius: 20px; padding: 5px 14px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .badge-green {
+      background: rgba(0,186,124,0.1); border-color: rgba(0,186,124,0.25); color: var(--green);
+    }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 10px; padding: 14px 28px; font-size: 15px;
+      font-weight: 700; cursor: pointer; text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+    }
+    .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+    .btn-outline {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: transparent; color: var(--text); border: 1px solid var(--border);
+      border-radius: 10px; padding: 13px 24px; font-size: 14px;
+      font-weight: 600; cursor: pointer; text-decoration: none;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(6,12,20,0.85); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px; max-width: 1100px; margin: 0 auto; padding: 0 24px;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 9px;
+      font-size: 16px; font-weight: 800; color: var(--accent); text-decoration: none;
+    }
+    .nav-links { display: flex; align-items: center; gap: 28px; }
+    .nav-links a {
+      color: var(--text2); font-size: 14px; font-weight: 500; text-decoration: none;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--accent); color: #fff; border: none; border-radius: 8px;
+      padding: 8px 18px; font-size: 13px; font-weight: 700; cursor: pointer;
+      text-decoration: none; transition: background 0.2s;
+    }
+    .nav-cta:hover { background: var(--accent2); }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 140px 0 100px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse at center, rgba(29,155,240,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-tag { margin-bottom: 20px; }
+    .hero h1 {
+      font-size: clamp(36px, 6vw, 64px);
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -1.5px;
+      margin-bottom: 22px;
+    }
+    .hero h1 em {
+      font-style: normal;
+      background: linear-gradient(135deg, var(--accent) 0%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: clamp(16px, 2.5vw, 20px);
+      color: var(--text2);
+      max-width: 580px;
+      margin: 0 auto 36px;
+      line-height: 1.7;
+    }
+    .hero-actions { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
+    .hero-trust {
+      margin-top: 56px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 24px; flex-wrap: wrap;
+    }
+    .hero-trust span { font-size: 13px; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+    .hero-trust span b { color: var(--text2); }
+
+    /* ── App preview ── */
+    .preview-section { padding: 20px 0 80px; }
+    .app-window {
+      max-width: 860px; margin: 0 auto;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+    }
+    .app-titlebar {
+      background: #0d1a25; padding: 10px 16px;
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .dot-r { width:11px;height:11px;border-radius:50%;background:#f4212e;flex-shrink:0; }
+    .dot-y { width:11px;height:11px;border-radius:50%;background:#f7c948;flex-shrink:0; }
+    .dot-g { width:11px;height:11px;border-radius:50%;background:#00ba7c;flex-shrink:0; }
+    .titlebar-url {
+      flex:1; background: var(--surface2); border-radius:6px;
+      padding:4px 12px; font-size:11px; color:var(--text3); text-align:center;
+    }
+    .app-body { display: flex; }
+    .app-sidebar {
+      width: 200px; border-right: 1px solid var(--border);
+      padding: 16px; display: flex; flex-direction: column; gap: 8px;
+      flex-shrink: 0;
+    }
+    .sidebar-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 8px; font-size: 12px; color: var(--text2);
+    }
+    .sidebar-item.active { background: rgba(29,155,240,0.1); color: var(--accent); font-weight: 600; }
+    .app-main { flex: 1; padding: 16px; min-height: 320px; }
+    .app-header-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .pill-demo {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface2); border: 1px solid rgba(0,186,124,0.3);
+      color: var(--green); border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+    }
+    .pill-dot { width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 1.4s infinite; }
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+    .provider-pill {
+      background: rgba(16,163,127,0.1); border: 1px solid rgba(16,163,127,0.2);
+      color: #10a37f; border-radius:10px; padding:2px 8px; font-size:10px; font-weight:700;
+    }
+    .entry-mock {
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: grid; grid-template-columns: 38px 1fr; gap: 0 10px;
+    }
+    .entry-mock:last-child { border-bottom: none; }
+    .entry-mock.active { background: rgba(29,155,240,0.05); border-radius:8px; padding:10px 8px;
+      border-left: 3px solid var(--accent); margin-left:-8px; }
+    .em-time { font-size:10px; color:var(--text3); padding-top:2px; text-align:right; }
+    .em-en { font-size:11px; color:#6b8299; margin-bottom:3px; }
+    .em-pt { font-size:15px; font-weight:500; color:var(--text); }
+    .entry-mock.active .em-pt { font-size:17px; font-weight:600; color:#fff; }
+
+    /* ── How it works ── */
+    .section { padding: 90px 0; }
+    .section-label { text-align: center; margin-bottom: 14px; }
+    .section-title {
+      text-align: center; font-size: clamp(26px, 4vw, 40px); font-weight: 800;
+      letter-spacing: -0.8px; margin-bottom: 14px;
+    }
+    .section-sub {
+      text-align: center; color: var(--text2); font-size: 16px; max-width: 520px;
+      margin: 0 auto 60px; line-height: 1.7;
+    }
+
+    .steps {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 28px;
+    }
+    .step {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 16px; padding: 28px;
+      transition: border-color 0.2s;
+    }
+    .step:hover { border-color: rgba(29,155,240,0.35); }
+    .step-num {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(29,155,240,0.12); border: 1px solid rgba(29,155,240,0.25);
+      color: var(--accent); font-size: 14px; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+    }
+    .step h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .step p { color: var(--text2); font-size: 14px; line-height: 1.6; }
+
+    /* ── Features ── */
+    .features-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .feature-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 24px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .feature-card:hover { border-color: var(--border); background: var(--surface2); }
+    .feature-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 14px;
+    }
+    .feature-icon.blue   { background: rgba(29,155,240,0.12); }
+    .feature-icon.green  { background: rgba(0,186,124,0.12); }
+    .feature-icon.purple { background: rgba(139,92,246,0.12); }
+    .feature-icon.orange { background: rgba(251,146,60,0.12); }
+    .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .feature-card p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+
+    /* ── Sources ── */
+    .sources-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+    }
+    .source-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 22px 20px;
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .source-card .src-icon { font-size: 26px; flex-shrink: 0; }
+    .source-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .source-card p { font-size: 12px; color: var(--text2); line-height: 1.5; }
+    .latency-tag {
+      display: inline-block; background: rgba(29,155,240,0.1); border: 1px solid rgba(29,155,240,0.2);
+      color: var(--accent); border-radius: 6px; padding: 1px 7px;
+      font-size: 10px; font-weight: 700; margin-top: 4px;
+    }
+
+    /* ── Pricing ── */
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px; align-items: start;
+    }
+    .price-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 18px; padding: 32px 28px;
+      position: relative; transition: transform 0.2s;
+    }
+    .price-card:hover { transform: translateY(-3px); }
+    .price-card.featured {
+      border-color: var(--accent);
+      background: linear-gradient(160deg, rgba(29,155,240,0.07) 0%, var(--surface) 60%);
+    }
+    .featured-label {
+      position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: #fff;
+      font-size: 11px; font-weight: 800; padding: 3px 14px; border-radius: 20px;
+      letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap;
+    }
+    .price-name { font-size: 13px; font-weight: 700; color: var(--text2); margin-bottom: 10px; letter-spacing: 0.4px; text-transform: uppercase; }
+    .price-amount {
+      font-size: 44px; font-weight: 900; letter-spacing: -2px;
+      line-height: 1; margin-bottom: 4px;
+    }
+    .price-amount small { font-size: 18px; font-weight: 600; vertical-align: super; letter-spacing: 0; }
+    .price-period { font-size: 13px; color: var(--text2); margin-bottom: 24px; }
+    .price-desc { font-size: 14px; color: var(--text2); margin-bottom: 22px; line-height: 1.6; }
+    .price-divider { height: 1px; background: var(--border); margin-bottom: 22px; }
+    .price-features { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 28px; }
+    .price-features li { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; }
+    .price-features li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; }
+    .price-features li.dim { color: var(--text2); }
+    .price-features li.dim::before { content: '—'; color: var(--text3); }
+    .price-btn {
+      width: 100%; padding: 13px; border-radius: 10px; font-size: 14px;
+      font-weight: 700; cursor: pointer; transition: all 0.2s; text-align: center;
+      text-decoration: none; display: block;
+    }
+    .price-btn-main { background: var(--accent); color: #fff; border: none; }
+    .price-btn-main:hover { background: var(--accent2); }
+    .price-btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .price-btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Business model callout ── */
+    .biz-section {
+      padding: 80px 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .biz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+    .biz-stat {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px 22px; margin-bottom: 12px;
+    }
+    .biz-stat-num { font-size: 32px; font-weight: 900; letter-spacing: -1px; color: var(--accent); }
+    .biz-stat-label { font-size: 13px; color: var(--text2); margin-top: 2px; }
+    @media (max-width: 700px) { .biz-grid { grid-template-columns: 1fr; gap: 32px; } }
+
+    /* ── Platforms ── */
+    .platforms-row {
+      display: flex; align-items: center; justify-content: center;
+      gap: 32px; flex-wrap: wrap;
+    }
+    .platform-chip {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 18px;
+      font-size: 14px; font-weight: 600; color: var(--text2);
+    }
+
+    /* ── FAQ ── */
+    .faq-list { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+    .faq-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .faq-q {
+      padding: 18px 22px; font-size: 15px; font-weight: 600; cursor: pointer;
+      display: flex; justify-content: space-between; align-items: center;
+      user-select: none;
+    }
+    .faq-q span { font-size: 18px; color: var(--text2); transition: transform 0.2s; }
+    .faq-item.open .faq-q span { transform: rotate(45deg); }
+    .faq-a {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      font-size: 14px; color: var(--text2); line-height: 1.7;
+    }
+    .faq-item.open .faq-a { max-height: 300px; padding: 0 22px 18px; }
+
+    /* ── CTA Final ── */
+    .cta-section {
+      padding: 100px 0;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      bottom: -100px; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, rgba(29,155,240,0.1), transparent 70%);
+      pointer-events: none;
+    }
+    .cta-section h2 { font-size: clamp(28px, 4vw, 44px); font-weight: 900; letter-spacing: -1px; margin-bottom: 14px; }
+    .cta-section p { color: var(--text2); font-size: 17px; max-width: 480px; margin: 0 auto 36px; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+    }
+    .footer-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-logo { font-size: 15px; font-weight: 800; color: var(--accent); }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a { font-size: 13px; color: var(--text2); text-decoration: none; transition: color 0.2s; }
+    .footer-links a:hover { color: var(--text); }
+    .footer-copy { font-size: 13px; color: var(--text3); }
+
+    @media (max-width: 640px) {
+      .nav-links { display: none; }
+      .app-sidebar { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ── -->
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="nav-logo">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="#1d9bf0" stroke-width="1.5"/>
+        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="#1d9bf0" stroke-width="1.5"/>
+      </svg>
+      Live Translator
+    </a>
+    <div class="nav-links">
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#funcionalidades">Funcionalidades</a>
+      <a href="#precos">Preços</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <a href="#precos" class="nav-cta">Começar grátis</a>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-tag">
+      <span class="badge">✦ Extensão para Chrome · Funciona em Meet, Teams e Zoom</span>
+    </div>
+    <h1>
+      Entenda aulas em inglês<br>
+      <em>em tempo real</em>
+    </h1>
+    <p>
+      Tradução simultânea EN → PT-BR diretamente no seu navegador.
+      Captura o áudio da reunião, transcreve com Whisper e traduz com IA —
+      sem digitar nada, sem pausar a aula.
+    </p>
+    <div class="hero-actions">
+      <a href="#precos" class="btn-primary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        Instalar extensão grátis
+      </a>
+      <a href="#como-funciona" class="btn-outline">Ver como funciona →</a>
+    </div>
+    <div class="hero-trust">
+      <span>🔒 <b>Sua chave de API.</b> Zero dados em servidor nosso.</span>
+      <span>⚡ <b>Latência &lt; 1s</b> com legendas automáticas</span>
+      <span>🌍 <b>Claude + OpenAI + MyMemory</b> como fallback</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── App Preview ── -->
+<section class="preview-section">
+  <div class="container">
+    <div class="app-window">
+      <div class="app-titlebar">
+        <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
+        <span class="titlebar-url">chrome-extension · Live Translator</span>
+      </div>
+      <div class="app-body">
+        <div class="app-sidebar">
+          <div class="sidebar-item active">📋 Histórico</div>
+          <div class="sidebar-item">🎤 Microfone</div>
+          <div class="sidebar-item">🖥 Áudio do Sistema</div>
+          <div class="sidebar-item">⚙️ Configurações</div>
+        </div>
+        <div class="app-main">
+          <div class="app-header-bar">
+            <div class="pill-demo"><span class="pill-dot"></span>traduzindo em tempo real</div>
+            <span class="provider-pill">OpenAI Whisper</span>
+          </div>
+          <div class="entry-mock">
+            <div class="em-time">09:14</div>
+            <div>
+              <div class="em-en">🇺🇸 The present perfect connects the past to the present moment.</div>
+              <div class="em-pt">🇧🇷 O present perfect conecta o passado ao momento presente.</div>
+            </div>
+          </div>
+          <div class="entry-mock">
+            <div class="em-time">09:15</div>
+            <div>
+              <div class="em-en">🇺🇸 For example: I have lived here for ten years — I still live here now.</div>
+              <div class="em-pt">🇧🇷 Por exemplo: Eu moro aqui há dez anos — ainda moro aqui agora.</div>
+            </div>
+          </div>
+          <div class="entry-mock active">
+            <div class="em-time">09:16</div>
+            <div>
+              <div class="em-en">🇺🇸 Now let's practice with some exercises. Open your books to page 42.</div>
+              <div class="em-pt">🇧🇷 Agora vamos praticar com alguns exercícios. Abram o livro na página 42.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Como Funciona ── -->
+<section class="section" id="como-funciona">
+  <div class="container">
+    <div class="section-label"><span class="badge">Como funciona</span></div>
+    <h2 class="section-title">3 passos para traduzir em tempo real</h2>
+    <p class="section-sub">Instale uma vez, use para sempre. Funciona em qualquer reunião online sem alterar nada na plataforma.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Instale a extensão</h3>
+        <p>Adicione ao Chrome em 30 segundos. Informe sua chave de API (Anthropic ou OpenAI). Pronto — nenhuma outra configuração.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Entre na reunião ou aula</h3>
+        <p>Abra o Google Meet, Teams ou Zoom normalmente. A extensão ativa automaticamente e detecta as legendas da plataforma.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Leia as traduções ao vivo</h3>
+        <p>As frases em inglês aparecem já traduzidas em português, atualizando em tempo real enquanto o professor ou colega fala.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Fontes de áudio ── -->
+<section class="section" style="padding-top:0">
+  <div class="container">
+    <div class="section-label"><span class="badge">Fontes de captura</span></div>
+    <h2 class="section-title">Captura de onde o áudio vier</h2>
+    <p class="section-sub">Não importa se a plataforma tem legendas ou não — o Live Translator tem uma solução.</p>
+    <div class="sources-grid">
+      <div class="source-card">
+        <span class="src-icon">📝</span>
+        <div>
+          <h4>Legendas automáticas</h4>
+          <p>Lê diretamente o texto de legenda do Meet, Teams e Zoom. Menor latência possível.</p>
+          <span class="latency-tag">~350ms</span>
+        </div>
+      </div>
+      <div class="source-card">
+        <span class="src-icon">🎤</span>
+        <div>
+          <h4>Microfone + Whisper</h4>
+          <p>Captura sua voz e transcreve com Whisper da OpenAI. Perfeito para praticar speaking.</p>
+          <span class="latency-tag">~3s</span>
+        </div>
+      </div>
+      <div class="source-card">
+        <span class="src-icon">🖥</span>
+        <div>
+          <h4>Áudio do Sistema</h4>
+          <p>Captura tudo que você ouve no fone — o professor, o colega, qualquer vídeo.</p>
+          <span class="latency-tag">~5s</span>
+        </div>
+      </div>
+      <div class="source-card">
+        <span class="src-icon">🌐</span>
+        <div>
+          <h4>Multi-plataforma</h4>
+          <p>Google Meet, Teams, Zoom e qualquer página com legendas acessíveis via DOM.</p>
+          <span class="latency-tag">automático</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Funcionalidades ── -->
+<section class="section" id="funcionalidades" style="background:var(--surface); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label"><span class="badge">Funcionalidades</span></div>
+    <h2 class="section-title">Tudo que você precisa para aprender</h2>
+    <p class="section-sub">Projetado para quem estuda inglês em contexto real — aulas, reuniões, podcasts.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon blue">🤖</div>
+        <h3>IA de ponta para traduzir</h3>
+        <p>Cascata automática: Claude Haiku → GPT-4o-mini → MyMemory. Sempre usa o melhor disponível.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon purple">🎙</div>
+        <h3>Whisper para transcrição</h3>
+        <p>O modelo de transcrição mais preciso do mercado. Muito superior ao reconhecimento de voz nativo do browser.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon green">📜</div>
+        <h3>Histórico da sessão</h3>
+        <p>Todas as frases traduzidas ficam salvas com timestamp durante a sessão. Revise o que aconteceu.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon orange">🔒</div>
+        <h3>Privacidade total</h3>
+        <p>Sua chave de API fica apenas no seu navegador. Zero dados enviados para nossos servidores.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon blue">⚡</div>
+        <h3>Latência mínima</h3>
+        <p>Com legendas automáticas, a tradução chega em menos de 1 segundo. Você lê enquanto o professor ainda fala.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon purple">🪟</div>
+        <h3>Janela independente</h3>
+        <p>Abra o histórico de traduções em uma janela separada. Coloque do lado da tela do Meet sem sobreposição.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Mercado / Business case ── -->
+<section class="biz-section">
+  <div class="container">
+    <div class="biz-grid">
+      <div>
+        <span class="badge badge-green" style="margin-bottom:18px;display:inline-flex">📊 Mercado</span>
+        <h2 style="font-size:clamp(24px,3.5vw,36px);font-weight:900;letter-spacing:-0.8px;margin-bottom:16px;line-height:1.2">
+          Milhões de brasileiros estudando inglês online
+        </h2>
+        <p style="color:var(--text2);font-size:15px;line-height:1.8;margin-bottom:24px">
+          O Brasil é o maior mercado de ensino de inglês da América Latina.
+          Plataformas como Wizard Online, CCAA Digital, Preply e iTalki cresceram
+          mais de 300% após a pandemia. Cada aluno passa em média 3 horas/semana
+          em aulas online — completamente em inglês.
+        </p>
+        <p style="color:var(--text2);font-size:15px;line-height:1.8">
+          O Live Translator resolve o maior obstáculo: entender o professor em tempo real,
+          sem interromper a aula para perguntar o significado de cada frase.
+        </p>
+      </div>
+      <div>
+        <div class="biz-stat">
+          <div class="biz-stat-num">22M+</div>
+          <div class="biz-stat-label">brasileiros matriculados em cursos de inglês (2024)</div>
+        </div>
+        <div class="biz-stat">
+          <div class="biz-stat-num" style="color:var(--green)">R$ 4,2bi</div>
+          <div class="biz-stat-label">mercado de ensino de idiomas no Brasil</div>
+        </div>
+        <div class="biz-stat">
+          <div class="biz-stat-num" style="color:var(--purple)">3h/semana</div>
+          <div class="biz-stat-label">média de aulas online em inglês por aluno</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Preços ── -->
+<section class="section" id="precos">
+  <div class="container">
+    <div class="section-label"><span class="badge">Planos</span></div>
+    <h2 class="section-title">Comece grátis, evolua quando precisar</h2>
+    <p class="section-sub">Use sua própria chave de API ou deixe a gente gerenciar tudo para você.</p>
+    <div class="pricing-grid">
+
+      <!-- Free -->
+      <div class="price-card">
+        <div class="price-name">Gratuito</div>
+        <div class="price-amount">R$<span style="font-size:44px">0</span></div>
+        <div class="price-period">para sempre</div>
+        <div class="price-desc">Para quem já tem suas próprias chaves de API. Extensão completa, sem limites artificiais.</div>
+        <div class="price-divider"></div>
+        <ul class="price-features">
+          <li>Extensão Chrome completa</li>
+          <li>Transcrição via Whisper (sua chave OpenAI)</li>
+          <li>Tradução via Claude ou GPT-4o (sua chave)</li>
+          <li>Fallback MyMemory (100% grátis)</li>
+          <li>Histórico da sessão</li>
+          <li class="dim">Sem suporte prioritário</li>
+          <li class="dim">Sem glossário personalizado</li>
+        </ul>
+        <a href="#" class="price-btn price-btn-outline">Baixar extensão</a>
+      </div>
+
+      <!-- Pro -->
+      <div class="price-card featured">
+        <div class="featured-label">Mais popular</div>
+        <div class="price-name">Pro</div>
+        <div class="price-amount"><small>R$</small>29</div>
+        <div class="price-period">/mês · cancele quando quiser</div>
+        <div class="price-desc">Tradução e transcrição ilimitadas. Sem se preocupar com custos de API.</div>
+        <div class="price-divider"></div>
+        <ul class="price-features">
+          <li>Tudo do plano Gratuito</li>
+          <li><b>Créditos de API incluídos</b> (~60h de aula/mês)</li>
+          <li>Glossário personalizado por usuário</li>
+          <li>Exportar histórico (TXT / SRT)</li>
+          <li>Suporte por e-mail em 24h</li>
+          <li>Atualizações prioritárias</li>
+        </ul>
+        <a href="#" class="price-btn price-btn-main">Começar Pro — R$29/mês</a>
+      </div>
+
+      <!-- Team -->
+      <div class="price-card">
+        <div class="price-name">Escola / Time</div>
+        <div class="price-amount"><small>R$</small>149</div>
+        <div class="price-period">/mês · até 10 alunos</div>
+        <div class="price-desc">Para escolas de idiomas, turmas e times que usam inglês no trabalho.</div>
+        <div class="price-divider"></div>
+        <ul class="price-features">
+          <li>Tudo do plano Pro</li>
+          <li>Até 10 usuários por conta</li>
+          <li>Painel de administração da escola</li>
+          <li>Glossário compartilhado por turma</li>
+          <li>Relatório de uso por aluno</li>
+          <li>Suporte via WhatsApp</li>
+        </ul>
+        <a href="#" class="price-btn price-btn-outline">Falar com a equipe</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ── Plataformas compatíveis ── -->
+<section class="section" style="padding-top:0">
+  <div class="container" style="text-align:center">
+    <p style="font-size:13px;color:var(--text3);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:24px">Funciona com suas plataformas favoritas</p>
+    <div class="platforms-row">
+      <div class="platform-chip">🎥 Google Meet</div>
+      <div class="platform-chip">💼 Microsoft Teams</div>
+      <div class="platform-chip">🎦 Zoom</div>
+      <div class="platform-chip">🎙 Qualquer áudio do sistema</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section class="section" id="faq" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container">
+    <div class="section-label"><span class="badge">FAQ</span></div>
+    <h2 class="section-title">Perguntas frequentes</h2>
+    <div class="faq-list">
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Preciso saber programar para usar? <span>+</span></div>
+        <div class="faq-a">Não. A instalação é feita diretamente pelo Chrome em 3 cliques. O único passo técnico é criar uma conta gratuita na Anthropic ou OpenAI e copiar a chave de API para o popup da extensão.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Funciona se o professor não ativar as legendas? <span>+</span></div>
+        <div class="faq-a">Sim. Neste caso você usa o modo "Áudio do Sistema": a extensão captura tudo que você está ouvindo no fone ou nos alto-falantes e transcreve com Whisper antes de traduzir. A latência é de aproximadamente 5 segundos, mas não depende de nenhuma ação do professor.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Meus dados de áudio ficam armazenados em algum servidor? <span>+</span></div>
+        <div class="faq-a">Não passam pelo nosso servidor. O áudio vai diretamente do seu navegador para a API da OpenAI (Whisper) ou Anthropic, usando sua própria chave. Nós não temos acesso a nenhum dado de áudio ou tradução. No plano Pro, os créditos são gerenciados por nós, mas o áudio ainda é processado diretamente nas APIs.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Qual é a qualidade da tradução? <span>+</span></div>
+        <div class="faq-a">Muito alta para contexto de aulas e reuniões. O Claude Haiku e o GPT-4o-mini são modelos de linguagem de ponta especialmente bons em tradução contextual. O sistema usa as últimas frases como contexto para resolver pronomes e referências corretamente. O fallback MyMemory é gratuito mas de qualidade inferior.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Funciona em outros idiomas além do inglês? <span>+</span></div>
+        <div class="faq-a">A versão atual está otimizada para inglês → português. O Whisper suporta mais de 50 idiomas para transcrição, então uma versão futura poderá oferecer outros pares de idiomas como espanhol, francês ou mandarim → português.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q" onclick="toggleFaq(this)">Posso cancelar o plano Pro quando quiser? <span>+</span></div>
+        <div class="faq-a">Sim. Sem fidelidade, sem multa. Cancele a qualquer momento pelo painel e você continua com acesso até o fim do período pago. Depois, volta automaticamente para o plano gratuito.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA Final ── -->
+<section class="cta-section">
+  <div class="container">
+    <h2>Pronto para entender<br>cada palavra da sua aula?</h2>
+    <p>Instale em 30 segundos. A primeira sessão é completamente gratuita.</p>
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap">
+      <a href="#" class="btn-primary" style="font-size:16px;padding:16px 32px">
+        Instalar extensão grátis →
+      </a>
+      <a href="#precos" class="btn-outline" style="font-size:15px">Ver planos</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <span class="footer-logo">🌐 Live Translator</span>
+      <div class="footer-links">
+        <a href="#">Privacidade</a>
+        <a href="#">Termos</a>
+        <a href="https://github.com/marcus1356/live-transcription">GitHub</a>
+        <a href="mailto:contato@livetranslator.app">Contato</a>
+      </div>
+      <span class="footer-copy">© 2025 Live Translator</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function toggleFaq(el) {
+    const item = el.parentElement;
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+    if (!isOpen) item.classList.add('open');
+  }
+
+  // Smooth entrance for elements
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.step, .feature-card, .source-card, .price-card, .biz-stat').forEach(el => {
+    el.style.opacity = '0';
+    el.style.transform = 'translateY(20px)';
+    el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+    observer.observe(el);
+  });
+</script>
+</body>
+</html>
