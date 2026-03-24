@@ -17,8 +17,14 @@
     </label>
   </div>
 
-  <!-- Mode indicator (MVP: always Caption mode) -->
+  <!-- Mode indicator -->
   <div class="mode-badge">📝 Caption mode</div>
+
+  <!-- Onboarding link (shown only when no keys configured) -->
+  <div id="onboardingBanner" class="onboarding-banner" style="display:none">
+    Nenhuma chave configurada.
+    <a href="#" id="onboardingLink">Configurar agora →</a>
+  </div>
 
   <!-- Anthropic API Key -->
   <div class="section">
@@ -35,6 +41,48 @@
     <div class="input-row">
       <input type="password" id="openaiKey" placeholder="sk-..." autocomplete="off">
       <button id="toggleOpenaiKey" class="btn-icon" title="Mostrar/ocultar chave">👁</button>
+    </div>
+  </div>
+
+  <!-- Gemini API Key (Item 13) -->
+  <div class="section">
+    <label class="field-label" for="geminiKey">
+      Google Gemini API Key
+      <span class="badge gemini">Gemini 1.5</span>
+    </label>
+    <div class="input-row">
+      <input type="password" id="geminiKey" placeholder="AIza..." autocomplete="off">
+      <button id="toggleGeminiKey" class="btn-icon" title="Mostrar/ocultar chave">👁</button>
+    </div>
+  </div>
+
+  <!-- Advanced section: collapsible (Item 14 Backend URL) -->
+  <div class="section">
+    <button class="collapse-header" id="advancedToggle">
+      <span>⚙ Avançado</span>
+      <span class="chevron" id="advancedChevron">▾</span>
+    </button>
+    <div class="collapse-body" id="advancedBody" style="display:none">
+      <label class="field-label" for="backendUrl" style="margin-top:8px">
+        Backend URL
+        <span class="badge" style="background:rgba(113,118,123,0.12);border-color:rgba(113,118,123,0.25);color:#71767b;">Proxy</span>
+      </label>
+      <input type="text" id="backendUrl" placeholder="http://localhost:3001" autocomplete="off" style="width:100%">
+      <div style="font-size:10px;color:#71767b;margin-top:4px">Se configurado, as chamadas de API passam pelo backend.</div>
+    </div>
+  </div>
+
+  <!-- Glossary section: collapsible (Item 4) -->
+  <div class="section">
+    <button class="collapse-header" id="glossaryToggle">
+      <span>📖 Glossário</span>
+      <span class="chevron" id="glossaryChevron">▾</span>
+    </button>
+    <div class="collapse-body" id="glossaryBody" style="display:none">
+      <div style="font-size:10px;color:#71767b;margin:6px 0 4px">
+        Um termo por linha. Formato: <code style="color:#e7e9ea">inglês = português</code>
+      </div>
+      <textarea id="glossaryText" class="glossary-area" placeholder="machine learning = aprendizado de máquina&#10;pipeline = pipeline&#10;deploy = implantação"></textarea>
     </div>
   </div>
 

@@ -36,6 +36,7 @@ function createPanel() {
 
 let currentEntryEl = null;
 let lastEN = '';
+let translationContext = []; // Item 3 – rolling context
 
 function addEntry(en) {
   const history = document.getElementById('lt-history');
@@ -71,6 +72,12 @@ function updatePT(entryEl, en, pt) {
   d.className = 'lt-pt';
   d.innerHTML = '<span class="lt-flag">🇧🇷</span><span>' + esc(pt) + '</span>';
   chrome.storage.local.set({ liveTranslation: { en, pt, ts: Date.now() } });
+
+  // Item 3 – update context
+  if (pt && !pt.startsWith('⚠')) {
+    translationContext.push(pt);
+    if (translationContext.length > 3) translationContext.shift();
+  }
 }
 
 function esc(str) {
@@ -93,7 +100,9 @@ function setStatusDot(on) {
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 function getSettings() {
-  return new Promise(r => chrome.storage.sync.get(['apiKey', 'openaiKey', 'enabled'], r));
+  return new Promise(r => chrome.storage.sync.get(
+    ['apiKey', 'openaiKey', 'geminiKey', 'backendUrl', 'glossary', 'enabled'], r
+  ));
 }
 
 // ── Translation ───────────────────────────────────────────────────────────────
@@ -104,7 +113,7 @@ async function translate(text) {
   if (!text || text === lastEN) return;
   if (inFlight) return;
 
-  const { apiKey, openaiKey, enabled } = await getSettings();
+  const { apiKey, openaiKey, geminiKey, backendUrl, glossary, enabled } = await getSettings();
   if (enabled === false) return;
 
   lastEN = text;
@@ -112,11 +121,20 @@ async function translate(text) {
   const entryEl = addEntry(text);
 
   try {
-    chrome.runtime.sendMessage({ action: 'translate', text, apiKey, openaiKey }, (res) => {
-      inFlight = false;
-      if (chrome.runtime.lastError) return;
-      updatePT(entryEl, text, res?.success ? res.translation : ('⚠ ' + (res?.error || 'erro')));
-    });
+    chrome.runtime.sendMessage(
+      {
+        action: 'translate', text,
+        apiKey, openaiKey, geminiKey,
+        context: [...translationContext],
+        glossary: glossary || {},
+        backendUrl: backendUrl || null,
+      },
+      (res) => {
+        inFlight = false;
+        if (chrome.runtime.lastError) return;
+        updatePT(entryEl, text, res?.success ? res.translation : ('⚠ ' + (res?.error || 'erro')));
+      }
+    );
   } catch (_) {
     inFlight = false;
   }
@@ -127,6 +145,8 @@ async function translate(text) {
 let lastRaw = '';
 let captionDebounce = null;
 let observer = null;
+let lastMutationTime = Date.now();
+let heartbeatTimer = null;
 
 function extractCaption() {
   for (const el of document.querySelectorAll('[aria-live]')) {
@@ -149,6 +169,7 @@ function extractCaption() {
 }
 
 function onMutation() {
+  lastMutationTime = Date.now();
   const text = extractCaption();
   if (!text || text === lastRaw) return;
   lastRaw = text;
@@ -160,11 +181,23 @@ function startObserver() {
   if (observer) observer.disconnect();
   observer = new MutationObserver(onMutation);
   observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+
+  // Item 19 – heartbeat: if observer running but no mutations for 45s, restart
+  clearInterval(heartbeatTimer);
+  heartbeatTimer = setInterval(() => {
+    if (!observer) return;
+    if (Date.now() - lastMutationTime > 45000) {
+      lastMutationTime = Date.now();
+      stopObserver();
+      startObserver();
+    }
+  }, 10000);
 }
 
 function stopObserver() {
   observer?.disconnect(); observer = null;
   clearTimeout(captionDebounce);
+  clearInterval(heartbeatTimer);
 }
 
 // ── Mic mode (Web Speech API) ─────────────────────────────────────────────────

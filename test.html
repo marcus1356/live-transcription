@@ -64,6 +64,7 @@
     .provider-badge.visible { opacity: 1; }
     .provider-badge.claude   { background: rgba(29,155,240,0.15); color: var(--accent); }
     .provider-badge.openai   { background: rgba(16,163,127,0.15); color: var(--openai); }
+    .provider-badge.gemini   { background: rgba(234,179,8,0.15); color: #eab308; }
     .provider-badge.mymemory { background: rgba(113,118,123,0.15); color: var(--text2); }
     .provider-badge.whisper  { background: rgba(139,92,246,0.15); color: var(--purple); }
 
@@ -78,6 +79,7 @@
     .btn:hover { background: #1e2d3d; border-color: var(--accent); }
     .btn.mic-active { background: rgba(244,33,46,0.1); border-color: rgba(244,33,46,0.4); color: var(--red); }
     .btn.sys-active { background: rgba(139,92,246,0.1); border-color: rgba(139,92,246,0.4); color: var(--purple); }
+    .btn.tab-active { background: rgba(29,155,240,0.1); border-color: rgba(29,155,240,0.4); color: var(--accent); }
     .btn-icon {
       background: none; border: none; color: var(--text2); font-size: 15px;
       cursor: pointer; padding: 4px; border-radius: 6px; transition: color 0.15s, background 0.15s;
@@ -165,6 +167,18 @@
     .mic-bar .rec-dot { background: var(--red); }
     .sys-bar .rec-dot { background: var(--purple); }
 
+    /* VAD voice level bar (Item 2) */
+    .vad-level {
+      flex-shrink: 0; width: 40px; height: 6px; background: var(--border);
+      border-radius: 3px; overflow: hidden;
+    }
+    .vad-level-fill {
+      height: 100%; background: var(--green); border-radius: 3px;
+      transition: width 0.1s linear; width: 0%;
+    }
+    .mic-bar .vad-level-fill  { background: var(--red); }
+    .sys-bar .vad-level-fill  { background: var(--purple); }
+
     /* ── Footer ── */
     footer {
       display: flex; align-items: center; justify-content: space-between;
@@ -187,6 +201,21 @@
     .btn-sm.primary { background: var(--accent); color: #fff; border-color: transparent; }
     .btn-sm.primary:hover { opacity: 0.88; }
     .btn-sm.running { background: rgba(244,33,46,0.12); color: var(--red); border-color: rgba(244,33,46,0.3); }
+
+    /* Export dropdown (Item 6) */
+    .export-wrap { position: relative; display: inline-block; }
+    .export-dropdown {
+      display: none; position: absolute; bottom: calc(100% + 6px); right: 0;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      overflow: hidden; z-index: 50; min-width: 100px;
+    }
+    .export-dropdown.open { display: block; }
+    .export-opt {
+      display: block; width: 100%; padding: 8px 14px; background: none; border: none;
+      color: var(--text); font-size: 12px; font-weight: 600; text-align: left;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .export-opt:hover { background: var(--surface2); }
 
     /* Phrases drawer */
     .phrases-drawer {
@@ -230,6 +259,11 @@
     </div>
 
     <div class="header-actions">
+      <!-- Item 12: Tab capture button -->
+      <button class="btn" id="tabBtn" onclick="toggleTabCapture()">
+        <span id="tabIcon">📋</span>
+        <span id="tabLabel">Capturar Aba</span>
+      </button>
       <button class="btn" id="sysBtn" onclick="toggleSystemAudio()">
         <span id="sysIcon">🖥</span>
         <span id="sysLabel">Áudio do Sistema</span>
@@ -256,18 +290,27 @@
         <p>
           <strong>Microfone</strong> — fale em inglês e veja a tradução<br>
           <strong>Áudio do Sistema</strong> — captura o que você ouve no fone<br>
+          <strong>Capturar Aba</strong> — captura áudio de aba Meet/Teams/Zoom<br>
           <strong>Exemplos</strong> — teste sem microfone
         </p>
       </div>
     </div>
 
+    <!-- Mic interim bar with VAD level indicator (Item 2) -->
     <div class="interim-bar mic-bar" id="micInterimBar">
       <span class="rec-dot"></span>
       <span id="micInterimText">ouvindo...</span>
+      <span class="vad-level" title="Nível de voz">
+        <span class="vad-level-fill" id="micVadFill"></span>
+      </span>
     </div>
+    <!-- System audio interim bar with VAD level -->
     <div class="interim-bar sys-bar" id="sysInterimBar">
       <span class="rec-dot"></span>
       <span id="sysInterimText">transcrevendo com Whisper...</span>
+      <span class="vad-level" title="Nível de áudio">
+        <span class="vad-level-fill" id="sysVadFill"></span>
+      </span>
     </div>
   </main>
 
@@ -283,6 +326,16 @@
       </select>
     </div>
     <div class="footer-right">
+      <!-- Item 6: Export button -->
+      <div class="export-wrap" id="exportWrap">
+        <button class="btn-sm" id="exportBtn" onclick="toggleExportMenu()" title="Exportar histórico">⬇ Exportar</button>
+        <div class="export-dropdown" id="exportDropdown">
+          <button class="export-opt" onclick="exportHistory('txt')">TXT</button>
+          <button class="export-opt" onclick="exportHistory('srt')">SRT</button>
+        </div>
+      </div>
+      <!-- Item 18: Session cost display -->
+      <span id="sessionCost" style="font-size:11px;color:var(--text3)"></span>
       <span id="entryCount" style="font-size:11px;color:var(--text3)"></span>
     </div>
   </footer>
@@ -301,16 +354,94 @@
 </div>
 
 <script>
-  // ── Key loading (safe: works outside extension context too) ─────────────────
-  let cachedKeys = { apiKey: null, openaiKey: null };
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Item 1/2: VAD class – Voice Activity Detection
+  // ─────────────────────────────────────────────────────────────────────────────
+  class VAD {
+    constructor({ stream, onSilence, onSound, onLevel, silenceThreshold = 0.015, silenceDuration = 1200 }) {
+      this.onSilence        = onSilence || (() => {});
+      this.onSound          = onSound  || (() => {});
+      this.onLevel          = onLevel  || (() => {});
+      this.silenceThreshold = silenceThreshold;
+      this.silenceDuration  = silenceDuration; // ms of silence before triggering
+      this.speaking         = false;
+      this.silenceStart     = null;
+      this._destroyed       = false;
+
+      this.audioCtx  = new AudioContext({ sampleRate: 16000 });
+      this.analyser  = this.audioCtx.createAnalyser();
+      this.analyser.fftSize = 256;
+      this.bufLen    = this.analyser.frequencyBinCount;
+      this.dataArr   = new Uint8Array(this.bufLen);
+
+      const src = this.audioCtx.createMediaStreamSource(stream);
+      src.connect(this.analyser);
+
+      this._interval = setInterval(() => this._tick(), 100);
+    }
+
+    _tick() {
+      if (this._destroyed) return;
+      this.analyser.getByteTimeDomainData(this.dataArr);
+      // Calculate RMS
+      let sum = 0;
+      for (let i = 0; i < this.bufLen; i++) {
+        const v = (this.dataArr[i] - 128) / 128;
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / this.bufLen);
+      // Normalise 0-1 for display (cap at 0.3 for visual clarity)
+      this.onLevel(Math.min(rms / 0.3, 1));
+
+      if (rms > this.silenceThreshold) {
+        if (!this.speaking) {
+          this.speaking = true;
+          this.silenceStart = null;
+          this.onSound();
+        } else {
+          this.silenceStart = null;
+        }
+      } else {
+        if (this.speaking) {
+          if (this.silenceStart === null) {
+            this.silenceStart = Date.now();
+          } else if (Date.now() - this.silenceStart >= this.silenceDuration) {
+            this.speaking = false;
+            this.silenceStart = null;
+            this.onSilence();
+          }
+        }
+      }
+    }
+
+    destroy() {
+      this._destroyed = true;
+      clearInterval(this._interval);
+      try { this.audioCtx.close(); } catch(_) {}
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Key loading (Items 3/4/13/14)
+  // ─────────────────────────────────────────────────────────────────────────────
+  let cachedKeys = { apiKey: null, openaiKey: null, geminiKey: null, backendUrl: null, glossary: {} };
 
   function loadKeys() {
     return new Promise(resolve => {
       if (typeof chrome === 'undefined' || !chrome.storage) return resolve(cachedKeys);
-      chrome.storage.sync.get(['apiKey', 'openaiKey'], data => {
-        cachedKeys = { apiKey: data.apiKey || null, openaiKey: data.openaiKey || null };
-        resolve(cachedKeys);
-      });
+      chrome.storage.sync.get(
+        ['apiKey', 'openaiKey', 'geminiKey', 'backendUrl', 'glossary'],
+        data => {
+          cachedKeys = {
+            apiKey:     data.apiKey     || null,
+            openaiKey:  data.openaiKey  || null,
+            geminiKey:  data.geminiKey  || null,
+            backendUrl: data.backendUrl || null,
+            glossary:   data.glossary   || {},
+          };
+          resolve(cachedKeys);
+        }
+      );
     });
   }
 
@@ -322,16 +453,32 @@
     });
   }
 
-  // ── Feed management ─────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Feed management
+  // ─────────────────────────────────────────────────────────────────────────────
   const feedEl   = document.getElementById('feed');
   const emptyEl  = document.getElementById('emptyFeed');
   const countEl  = document.getElementById('entryCount');
-  let entries    = [];
+  let entries    = [];     // { el, en, pt, ts, tsMs }
   let currentEl  = null;
   let autoScroll = true;
 
+  // Item 3 – rolling translation context (last 3 translated PT texts)
+  let translationContext = [];
+  // Item 15 – previous transcript for deduplication
+  let previousTranscript = null;
+  // Item 18 – session cost
+  let sessionCostUSD = 0;
+
   feedEl.addEventListener('scroll', () => {
     autoScroll = feedEl.scrollHeight - feedEl.scrollTop - feedEl.clientHeight < 60;
+  });
+
+  // Close export dropdown on outside click
+  document.addEventListener('click', (e) => {
+    if (!document.getElementById('exportWrap').contains(e.target)) {
+      document.getElementById('exportDropdown').classList.remove('open');
+    }
   });
 
   function nowStr() {
@@ -354,8 +501,11 @@
 
     feedEl.appendChild(el);
     currentEl = el;
-    entries.push(el);
-    if (entries.length > 200) feedEl.removeChild(entries.shift());
+    entries.push({ el, en, pt: null, ts: nowStr(), tsMs: Date.now() });
+    if (entries.length > 200) {
+      const removed = entries.shift();
+      removed.el.remove();
+    }
     if (autoScroll) feedEl.scrollTop = feedEl.scrollHeight;
     countEl.textContent = entries.length + ' entrada' + (entries.length !== 1 ? 's' : '');
     setStatus('active');
@@ -369,11 +519,24 @@
     d.className = 'entry-pt';
     d.innerHTML = '<span class="flag">🇧🇷</span><span>' + esc(pt) + '</span>';
     if (autoScroll) feedEl.scrollTop = feedEl.scrollHeight;
+
+    // Update entries data and context
+    const entry = entries.find(e => e.el === el);
+    if (entry) { entry.pt = pt; }
+
+    if (pt && !pt.startsWith('⚠')) {
+      translationContext.push(pt);
+      if (translationContext.length > 3) translationContext.shift();
+    }
   }
 
   function clearFeed() {
-    entries.forEach(e => e.remove());
+    entries.forEach(e => e.el.remove());
     entries = []; currentEl = null;
+    translationContext = [];
+    previousTranscript = null;
+    sessionCostUSD = 0;
+    updateCostDisplay();
     emptyEl.style.display = '';
     countEl.textContent = '';
     setStatus('idle');
@@ -381,9 +544,29 @@
 
   function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
 
-  // ── Status + provider ───────────────────────────────────────────────────────
+  // Item 18 – session cost display
+  function updateCostDisplay() {
+    const el = document.getElementById('sessionCost');
+    if (!el) return;
+    if (sessionCostUSD === 0) { el.textContent = ''; return; }
+    const formatted = sessionCostUSD < 0.001
+      ? '$0.000'
+      : '$' + sessionCostUSD.toFixed(3);
+    el.textContent = '~' + formatted + ' sessão';
+  }
+
+  function addCost(cost) {
+    if (typeof cost === 'number' && cost > 0) {
+      sessionCostUSD += cost;
+      updateCostDisplay();
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Status + provider
+  // ─────────────────────────────────────────────────────────────────────────────
   let statusTimer = null;
-  const PROVIDER_LABELS = { claude: 'Claude', openai: 'OpenAI', mymemory: 'MyMemory', whisper: 'Whisper' };
+  const PROVIDER_LABELS = { claude: 'Claude', openai: 'OpenAI', gemini: 'Gemini', mymemory: 'MyMemory', whisper: 'Whisper' };
 
   function setStatus(state) {
     const pill  = document.getElementById('statusPill');
@@ -392,7 +575,7 @@
     if (state === 'active') {
       pill.className = 'status-pill active';
       label.textContent = 'traduzindo';
-      statusTimer = setTimeout(() => setStatus(micActive ? 'mic' : sysActive ? 'sys' : 'idle'), 5000);
+      statusTimer = setTimeout(() => setStatus(micActive ? 'mic' : sysActive ? 'sys' : tabActive ? 'sys' : 'idle'), 5000);
     } else if (state === 'mic') {
       pill.className = 'status-pill mic-on';
       label.textContent = 'microfone ativo';
@@ -413,7 +596,9 @@
     badge._timer = setTimeout(() => badge.classList.remove('visible'), 5000);
   }
 
-  // ── Watch #lt-test-translation (written by content.js) ─────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Watch #lt-test-translation (written by content.js)
+  // ─────────────────────────────────────────────────────────────────────────────
   const translationEl = document.getElementById('lt-test-translation');
   new MutationObserver(() => {
     const pt = translationEl.textContent.trim();
@@ -421,7 +606,9 @@
     if (currentEl && currentEl.querySelector('.entry-pt.pending')) updatePT(currentEl, pt);
   }).observe(translationEl, { characterData: true, childList: true, subtree: true });
 
-  // ── Translation ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Translation (Items 3, 4, 13, 14, 18)
+  // ─────────────────────────────────────────────────────────────────────────────
   let inFlight = false;
   let lastSent = '';
 
@@ -433,134 +620,257 @@
     const keys = cachedKeys;
 
     if (typeof chrome === 'undefined' || !chrome.runtime) {
-      // Outside extension context — show text without translation
       inFlight = false;
       updatePT(el, '(extensão não detectada)');
       return;
     }
 
     chrome.runtime.sendMessage(
-      { action: 'translate', text, apiKey: keys.apiKey, openaiKey: keys.openaiKey },
+      {
+        action:  'translate',
+        text,
+        apiKey:     keys.apiKey,
+        openaiKey:  keys.openaiKey,
+        geminiKey:  keys.geminiKey,
+        backendUrl: keys.backendUrl,
+        context:    [...translationContext],
+        glossary:   keys.glossary || {},
+        previousTranscript,
+      },
       (res) => {
         inFlight = false;
         if (chrome.runtime.lastError || !res) return;
         updatePT(el, res.success ? res.translation : '⚠ ' + res.error);
         if (res.success && res.provider) showProvider(res.provider);
+        if (res.success && res.cost)     addCost(res.cost);
       }
     );
   }
 
-  // ── Mic ─────────────────────────────────────────────────────────────────────
-  // Uses getUserMedia (triggers permission dialog) + Whisper when key available,
-  // falls back to Web Speech API otherwise.
-  let micActive    = false;
-  let micStream    = null;
-  let micRecorder  = null;
-  let recognition  = null;
-  let micDebounce  = null;
-  let lastInterim  = '';
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Transcription helper (Items 1, 15, 18)
+  // ─────────────────────────────────────────────────────────────────────────────
+  function sendForTranscription(base64, mimeType, sourceTag) {
+    const keys = cachedKeys;
+    chrome.runtime.sendMessage(
+      {
+        action:     'transcribe',
+        audioData:  base64,
+        mimeType,
+        openaiKey:  keys.openaiKey,
+        backendUrl: keys.backendUrl,
+        previousText: previousTranscript,
+      },
+      (res) => {
+        if (chrome.runtime.lastError || !res?.success) return;
+        const text = res.text?.trim();
+        if (res.cost) addCost(res.cost);
+        if (text && text.length > 3) {
+          previousTranscript = text;
+          sendForTranslation(text, sourceTag);
+        }
+      }
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Item 1/2: VAD-based audio recording helper
+  // Creates a MediaRecorder that uses VAD to split on silence (max 8s chunks)
+  // ─────────────────────────────────────────────────────────────────────────────
+  function createVADRecorder(stream, mimeType, onChunk, vadFillId) {
+    let recorder      = null;
+    let chunkStart    = Date.now();
+    const MAX_DURATION = 8000; // 8s max chunk
+    let vad           = null;
+    let maxTimer      = null;
+
+    function startChunk() {
+      if (recorder && recorder.state === 'recording') return;
+      recorder = new MediaRecorder(stream, { mimeType });
+      chunkStart = Date.now();
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 500) {
+          const reader = new FileReader();
+          reader.onload = () => onChunk(reader.result.split(',')[1]);
+          reader.readAsDataURL(e.data);
+        }
+      };
+      recorder.start();
+      // Max 8s safety timer
+      clearTimeout(maxTimer);
+      maxTimer = setTimeout(() => splitChunk(), MAX_DURATION);
+    }
+
+    function splitChunk() {
+      clearTimeout(maxTimer);
+      if (recorder && recorder.state === 'recording') {
+        recorder.stop();
+        // Brief gap then restart
+        setTimeout(() => startChunk(), 100);
+      }
+    }
+
+    // Start VAD on the raw (un-resampled) stream for level detection
+    const rawStream = stream; // the AudioContext-destined stream
+    vad = new VAD({
+      stream: rawStream,
+      silenceThreshold: 0.015,
+      silenceDuration:  1200,
+      onSilence: () => {
+        // Only split if we've recorded at least 1s
+        if (Date.now() - chunkStart >= 1000) splitChunk();
+      },
+      onSound: () => {
+        if (!recorder || recorder.state !== 'recording') startChunk();
+      },
+      onLevel: (level) => {
+        const fill = document.getElementById(vadFillId);
+        if (fill) fill.style.width = Math.round(level * 100) + '%';
+      },
+    });
+
+    startChunk();
+
+    return {
+      stop() {
+        clearTimeout(maxTimer);
+        vad.destroy();
+        if (recorder && recorder.state === 'recording') {
+          try { recorder.stop(); } catch(_) {}
+        }
+        recorder = null;
+        const fill = document.getElementById(vadFillId);
+        if (fill) fill.style.width = '0%';
+      }
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Mic (Item 19: auto-reconnect)
+  // ─────────────────────────────────────────────────────────────────────────────
+  let micActive      = false;
+  let micStream      = null;
+  let micVADRecorder = null;
+  let recognition    = null;
+  let micDebounce    = null;
+  let lastInterim    = '';
+  let micRetries     = 0;
+  const MIC_MAX_RETRIES = 3;
 
   function toggleMic() { micActive ? stopMic() : startMic(); }
 
   async function startMic() {
     if (sysActive) stopSystemAudio();
+    if (tabActive) stopTabCapture();
 
-    // Show pending state immediately so the user sees feedback
     document.getElementById('micBtn').classList.add('mic-active');
     document.getElementById('micIcon').textContent = '⏳';
     document.getElementById('micLabel').textContent = 'aguardando...';
 
     if (cachedKeys.openaiKey) {
-      // ── Whisper path: getUserMedia → MediaRecorder → Whisper ──
-      try {
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch (err) {
-        _micUiIdle();
-        if (err.name === 'NotAllowedError') alert('Permissão de microfone negada. Autorize nas configurações do site.');
-        else alert('Erro de microfone: ' + err.message);
-        return;
-      }
+      await startMicInternal();
+    } else {
+      _startMicWebSpeech();
+    }
+  }
 
+  async function startMicInternal() {
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      _micUiIdle();
+      micActive = false;
+      if (err.name === 'NotAllowedError') alert('Permissão de microfone negada. Autorize nas configurações do site.');
+      else alert('Erro de microfone: ' + err.message);
+      return;
+    }
+
+    micActive = true;
+    micRetries = 0;
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus' : 'audio/webm';
+
+    micVADRecorder = createVADRecorder(
+      new MediaStream([micStream.getAudioTracks()[0]]),
+      mimeType,
+      (base64) => sendForTranscription(base64, mimeType, 'mic'),
+      'micVadFill'
+    );
+
+    // Item 19: auto-reconnect on unexpected stream end
+    micStream.getAudioTracks()[0].onended = () => {
+      if (!micActive) return;
+      _handleMicStreamEnd();
+    };
+
+    document.getElementById('micIcon').textContent = '⏹';
+    document.getElementById('micLabel').textContent = 'Parar';
+    document.getElementById('micInterimBar').classList.add('visible');
+    document.getElementById('micInterimText').textContent = 'transcrevendo com Whisper...';
+    setStatus('mic');
+  }
+
+  function _handleMicStreamEnd() {
+    if (!micActive) return;
+    if (micRetries >= MIC_MAX_RETRIES) {
+      stopMic();
+      alert('Microfone desconectado após várias tentativas.');
+      return;
+    }
+    micRetries++;
+    document.getElementById('micInterimText').textContent = 'reconectando...';
+    if (micVADRecorder) { micVADRecorder.stop(); micVADRecorder = null; }
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    setTimeout(() => { if (micActive) startMicInternal(); }, 2000);
+  }
+
+  function _startMicWebSpeech() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { _micUiIdle(); alert('Use o Chrome ou adicione uma OpenAI API Key para reconhecimento de voz.'); return; }
+
+    recognition = new SR();
+    recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true;
+
+    recognition.onstart = () => {
       micActive = true;
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus' : 'audio/webm';
-      micRecorder = new MediaRecorder(micStream, { mimeType });
-
-      micRecorder.ondataavailable = (e) => {
-        if (e.data.size < 500) return;
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = reader.result.split(',')[1];
-          chrome.runtime.sendMessage(
-            { action: 'transcribe', audioData: base64, mimeType, openaiKey: cachedKeys.openaiKey },
-            (res) => {
-              if (chrome.runtime.lastError || !res?.success) return;
-              const text = res.text?.trim();
-              if (text && text.length > 3) sendForTranslation(text, 'mic');
-            }
-          );
-        };
-        reader.readAsDataURL(e.data);
-      };
-
-      micRecorder.start(3000); // 3-second chunks
-      micStream.getAudioTracks()[0].onended = () => stopMic();
-
       document.getElementById('micIcon').textContent = '⏹';
       document.getElementById('micLabel').textContent = 'Parar';
       document.getElementById('micInterimBar').classList.add('visible');
-      document.getElementById('micInterimText').textContent = 'transcrevendo com Whisper...';
       setStatus('mic');
-
-    } else {
-      // ── Web Speech API fallback ──
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) { _micUiIdle(); alert('Use o Chrome ou adicione uma OpenAI API Key para reconhecimento de voz.'); return; }
-
-      recognition = new SR();
-      recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true;
-
-      recognition.onstart = () => {
-        micActive = true;
-        document.getElementById('micIcon').textContent = '⏹';
-        document.getElementById('micLabel').textContent = 'Parar';
-        document.getElementById('micInterimBar').classList.add('visible');
-        setStatus('mic');
-      };
-      recognition.onresult = (event) => {
-        let interim = '', final = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const t = event.results[i][0].transcript;
-          event.results[i].isFinal ? (final += t) : (interim += t);
-        }
-        document.getElementById('micInterimText').textContent = (final || interim).trim() || 'ouvindo...';
-        if (final.trim().length > 3) {
-          clearTimeout(micDebounce); lastInterim = '';
-          sendForTranslation(final.trim(), 'mic');
+    };
+    recognition.onresult = (event) => {
+      let interim = '', final = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        event.results[i].isFinal ? (final += t) : (interim += t);
+      }
+      document.getElementById('micInterimText').textContent = (final || interim).trim() || 'ouvindo...';
+      if (final.trim().length > 3) {
+        clearTimeout(micDebounce); lastInterim = '';
+        sendForTranslation(final.trim(), 'mic');
+        document.getElementById('micInterimText').textContent = 'ouvindo...';
+      } else if (interim.trim().length > 3 && interim.trim() !== lastInterim) {
+        lastInterim = interim.trim();
+        clearTimeout(micDebounce);
+        micDebounce = setTimeout(() => {
+          if (!lastInterim) return;
+          sendForTranslation(lastInterim, 'mic'); lastInterim = '';
           document.getElementById('micInterimText').textContent = 'ouvindo...';
-        } else if (interim.trim().length > 3 && interim.trim() !== lastInterim) {
-          lastInterim = interim.trim();
-          clearTimeout(micDebounce);
-          micDebounce = setTimeout(() => {
-            if (!lastInterim) return;
-            sendForTranslation(lastInterim, 'mic'); lastInterim = '';
-            document.getElementById('micInterimText').textContent = 'ouvindo...';
-          }, 420);
-        }
-      };
-      recognition.onerror = (e) => {
-        if (e.error === 'not-allowed') { alert('Permissão de microfone negada.'); stopMic(); }
-        else if (e.error !== 'no-speech') console.warn('mic:', e.error);
-      };
-      recognition.onend = () => { if (micActive) recognition.start(); };
-      recognition.start();
-    }
+        }, 420);
+      }
+    };
+    recognition.onerror = (e) => {
+      if (e.error === 'not-allowed') { alert('Permissão de microfone negada.'); stopMic(); }
+      else if (e.error !== 'no-speech') console.warn('mic:', e.error);
+    };
+    recognition.onend = () => { if (micActive) recognition.start(); };
+    recognition.start();
   }
 
   function stopMic() {
     micActive = false;
     clearTimeout(micDebounce);
-    if (micRecorder) { try { micRecorder.stop(); } catch(_){} micRecorder = null; }
+    if (micVADRecorder) { micVADRecorder.stop(); micVADRecorder = null; }
     if (micStream)   { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
     if (recognition) { recognition.onend = null; recognition.stop(); recognition = null; }
     _micUiIdle();
@@ -572,20 +882,25 @@
     document.getElementById('micIcon').textContent = '🎤';
     document.getElementById('micLabel').textContent = 'Microfone';
     document.getElementById('micInterimBar').classList.remove('visible');
+    document.getElementById('micVadFill').style.width = '0%';
   }
 
-  // ── System Audio (getDisplayMedia → Whisper) ────────────────────────────────
-  let sysStream   = null;
-  let sysRecorder = null;
-  let sysAudioCtx = null;
-  let sysActive   = false;
+  // ─────────────────────────────────────────────────────────────────────────────
+  // System Audio (Items 1/2 VAD + Item 19 auto-reconnect)
+  // ─────────────────────────────────────────────────────────────────────────────
+  let sysStream      = null;
+  let sysAudioCtx    = null;
+  let sysVADRecorder = null;
+  let sysActive      = false;
+  let sysRetries     = 0;
+  const SYS_MAX_RETRIES = 3;
 
   function toggleSystemAudio() { sysActive ? stopSystemAudio() : startSystemAudio(); }
 
   async function startSystemAudio() {
     if (micActive) stopMic();
+    if (tabActive) stopTabCapture();
 
-    // Use cachedKeys directly — cannot await before getDisplayMedia (breaks user gesture)
     if (!cachedKeys.openaiKey) {
       alert('Configure a OpenAI API Key no popup da extensão para usar o Áudio do Sistema (Whisper).');
       return;
@@ -597,13 +912,11 @@
     }
 
     try {
-      // getDisplayMedia: grab audio + minimal video (spec requires video)
       const stream = await navigator.mediaDevices.getDisplayMedia({
         audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false },
         video: { width: 1, height: 1, frameRate: 1 },
       });
 
-      // Stop video tracks immediately
       stream.getVideoTracks().forEach(t => t.stop());
 
       const audioTracks = stream.getAudioTracks();
@@ -612,43 +925,30 @@
         return;
       }
 
-      // Route through AudioContext → audio-only MediaStream
       sysAudioCtx = new AudioContext({ sampleRate: 16000 });
       const src  = sysAudioCtx.createMediaStreamSource(stream);
       const dest = sysAudioCtx.createMediaStreamDestination();
       src.connect(dest);
       sysStream = stream;
+      sysActive = true;
+      sysRetries = 0;
 
       const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus' : 'audio/webm';
 
-      sysRecorder = new MediaRecorder(dest.stream, { mimeType });
+      sysVADRecorder = createVADRecorder(
+        dest.stream,
+        mimeType,
+        (base64) => { showProvider('whisper'); sendForTranscription(base64, mimeType, 'whisper'); },
+        'sysVadFill'
+      );
 
-      sysRecorder.ondataavailable = (e) => {
-        if (e.data.size < 500) return; // skip empty chunks
-
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = reader.result.split(',')[1];
-          showProvider('whisper');
-          chrome.runtime.sendMessage(
-            { action: 'transcribe', audioData: base64, mimeType, openaiKey: cachedKeys.openaiKey },
-            (res) => {
-              if (chrome.runtime.lastError || !res?.success) return;
-              const text = res.text?.trim();
-              if (text && text.length > 3) sendForTranslation(text, 'whisper');
-            }
-          );
-        };
-        reader.readAsDataURL(e.data);
+      // Item 19: auto-reconnect
+      audioTracks[0].onended = () => {
+        if (!sysActive) return;
+        _handleSysStreamEnd();
       };
 
-      sysRecorder.start(5000); // 5-second chunks
-
-      // Handle user stopping screen share
-      audioTracks[0].onended = () => stopSystemAudio();
-
-      sysActive = true;
       document.getElementById('sysBtn').classList.add('sys-active');
       document.getElementById('sysIcon').textContent = '⏹';
       document.getElementById('sysLabel').textContent = 'Parar';
@@ -667,19 +967,244 @@
     }
   }
 
+  function _handleSysStreamEnd() {
+    if (!sysActive) return;
+    if (sysRetries >= SYS_MAX_RETRIES) {
+      stopSystemAudio();
+      alert('Áudio do sistema desconectado após várias tentativas.');
+      return;
+    }
+    sysRetries++;
+    document.getElementById('sysInterimText').textContent = 'reconectando...';
+    if (sysVADRecorder) { sysVADRecorder.stop(); sysVADRecorder = null; }
+    if (sysAudioCtx) { sysAudioCtx.close().catch(() => {}); sysAudioCtx = null; }
+    if (sysStream) { sysStream.getTracks().forEach(t => t.stop()); sysStream = null; }
+    setTimeout(() => { if (sysActive) startSystemAudio(); }, 2000);
+  }
+
   function stopSystemAudio() {
     sysActive = false;
-    if (sysRecorder) { try { sysRecorder.stop(); } catch(_){} sysRecorder = null; }
+    if (sysVADRecorder) { sysVADRecorder.stop(); sysVADRecorder = null; }
     if (sysStream)   { sysStream.getTracks().forEach(t => t.stop()); sysStream = null; }
     if (sysAudioCtx) { sysAudioCtx.close().catch(()=>{}); sysAudioCtx = null; }
     document.getElementById('sysBtn').classList.remove('sys-active');
     document.getElementById('sysIcon').textContent = '🖥';
     document.getElementById('sysLabel').textContent = 'Áudio do Sistema';
     document.getElementById('sysInterimBar').classList.remove('visible');
+    document.getElementById('sysVadFill').style.width = '0%';
     setStatus('idle');
   }
 
-  // ── Caption simulation (Exemplos) ───────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Item 12: Tab Capture
+  // ─────────────────────────────────────────────────────────────────────────────
+  let tabActive      = false;
+  let tabStream      = null;
+  let tabAudioCtx    = null;
+  let tabVADRecorder = null;
+  let tabRetries     = 0;
+  const TAB_MAX_RETRIES = 3;
+
+  function toggleTabCapture() { tabActive ? stopTabCapture() : startTabCapture(); }
+
+  async function startTabCapture() {
+    if (micActive) stopMic();
+    if (sysActive) stopSystemAudio();
+
+    if (!cachedKeys.openaiKey) {
+      alert('Configure a OpenAI API Key no popup da extensão para usar a captura de aba (Whisper).');
+      return;
+    }
+
+    if (typeof chrome === 'undefined' || !chrome.runtime) {
+      alert('Captura de aba disponível apenas dentro da extensão.');
+      return;
+    }
+
+    document.getElementById('tabBtn').classList.add('tab-active');
+    document.getElementById('tabIcon').textContent = '⏳';
+    document.getElementById('tabLabel').textContent = 'conectando...';
+
+    try {
+      // Get own tab ID
+      const myTabResp = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({ action: 'getMyTabId' }, (res) => {
+          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+          else resolve(res);
+        });
+      });
+
+      const consumerTabId = myTabResp?.tabId;
+
+      // Get stream ID from background (finds Meet/Teams/Zoom tab)
+      const streamResp = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage(
+          { action: 'getTabStreamId', consumerTabId },
+          (res) => {
+            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+            else resolve(res);
+          }
+        );
+      });
+
+      if (!streamResp?.success) {
+        throw new Error(streamResp?.error || 'Falha ao obter stream ID');
+      }
+
+      const { streamId, tabTitle } = streamResp;
+
+      // Get audio stream from the captured tab
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          mandatory: {
+            chromeMediaSource: 'tab',
+            chromeMediaSourceId: streamId,
+          },
+        },
+        video: false,
+      });
+
+      tabAudioCtx = new AudioContext({ sampleRate: 16000 });
+      const src  = tabAudioCtx.createMediaStreamSource(stream);
+      const dest = tabAudioCtx.createMediaStreamDestination();
+      src.connect(dest);
+      tabStream = stream;
+      tabActive = true;
+      tabRetries = 0;
+
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus' : 'audio/webm';
+
+      tabVADRecorder = createVADRecorder(
+        dest.stream,
+        mimeType,
+        (base64) => { showProvider('whisper'); sendForTranscription(base64, mimeType, 'whisper'); },
+        'sysVadFill'
+      );
+
+      stream.getAudioTracks()[0].onended = () => {
+        if (!tabActive) return;
+        _handleTabStreamEnd();
+      };
+
+      const shortTitle = tabTitle ? tabTitle.substring(0, 20) + (tabTitle.length > 20 ? '…' : '') : 'aba';
+      document.getElementById('tabIcon').textContent = '⏹';
+      document.getElementById('tabLabel').textContent = shortTitle;
+      document.getElementById('sysInterimBar').classList.add('visible');
+      document.getElementById('sysInterimText').textContent = `capturando: ${shortTitle}`;
+      setStatus('sys');
+
+    } catch (err) {
+      console.error('[LT] tab capture:', err);
+      _tabUiIdle();
+      alert('Erro ao capturar aba: ' + err.message);
+    }
+  }
+
+  function _handleTabStreamEnd() {
+    if (!tabActive) return;
+    if (tabRetries >= TAB_MAX_RETRIES) {
+      stopTabCapture();
+      alert('Aba desconectada após várias tentativas.');
+      return;
+    }
+    tabRetries++;
+    document.getElementById('sysInterimText').textContent = 'reconectando...';
+    if (tabVADRecorder) { tabVADRecorder.stop(); tabVADRecorder = null; }
+    if (tabAudioCtx) { tabAudioCtx.close().catch(() => {}); tabAudioCtx = null; }
+    if (tabStream) { tabStream.getTracks().forEach(t => t.stop()); tabStream = null; }
+    setTimeout(() => { if (tabActive) startTabCapture(); }, 2000);
+  }
+
+  function stopTabCapture() {
+    tabActive = false;
+    if (tabVADRecorder) { tabVADRecorder.stop(); tabVADRecorder = null; }
+    if (tabStream)   { tabStream.getTracks().forEach(t => t.stop()); tabStream = null; }
+    if (tabAudioCtx) { tabAudioCtx.close().catch(() => {}); tabAudioCtx = null; }
+    _tabUiIdle();
+    setStatus('idle');
+  }
+
+  function _tabUiIdle() {
+    document.getElementById('tabBtn').classList.remove('tab-active');
+    document.getElementById('tabIcon').textContent = '📋';
+    document.getElementById('tabLabel').textContent = 'Capturar Aba';
+    document.getElementById('sysInterimBar').classList.remove('visible');
+    document.getElementById('sysVadFill').style.width = '0%';
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Item 6: Export history
+  // ─────────────────────────────────────────────────────────────────────────────
+  function toggleExportMenu() {
+    document.getElementById('exportDropdown').classList.toggle('open');
+  }
+
+  function pad(n, len) { return String(n).padStart(len, '0'); }
+
+  function msToSRTTime(ms) {
+    const h   = Math.floor(ms / 3600000);
+    const m   = Math.floor((ms % 3600000) / 60000);
+    const s   = Math.floor((ms % 60000) / 1000);
+    const mil = ms % 1000;
+    return `${pad(h,2)}:${pad(m,2)}:${pad(s,2)},${pad(mil,3)}`;
+  }
+
+  function exportHistory(format) {
+    document.getElementById('exportDropdown').classList.remove('open');
+    const validEntries = entries.filter(e => e.pt && !e.pt.startsWith('⚠'));
+    if (validEntries.length === 0) {
+      alert('Nenhuma entrada para exportar.');
+      return;
+    }
+
+    const sessionStart = validEntries[0].tsMs;
+    let content = '';
+    let filename = '';
+
+    if (format === 'txt') {
+      content = validEntries.map(e => `${e.ts} | ${e.en} | ${e.pt || ''}`).join('\n');
+      filename = 'traducao_' + new Date().toISOString().slice(0,10) + '.txt';
+    } else if (format === 'srt') {
+      content = validEntries.map((e, i) => {
+        const startMs = e.tsMs - sessionStart;
+        const endMs   = startMs + 4000; // estimate 4s per subtitle
+        return `${i + 1}\n${msToSRTTime(startMs)} --> ${msToSRTTime(endMs)}\n${e.pt || e.en}\n`;
+      }).join('\n');
+      filename = 'traducao_' + new Date().toISOString().slice(0,10) + '.srt';
+    }
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Item 9: Keyboard shortcuts (page-level)
+  // ─────────────────────────────────────────────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey) {
+      if (e.key === 'M') { e.preventDefault(); toggleMic(); }
+      if (e.key === 'S') { e.preventDefault(); toggleSystemAudio(); }
+      if (e.key === 'E') { e.preventDefault(); toggleExportMenu(); }
+    }
+  });
+
+  // Listen for shortcut messages from background.js
+  if (typeof chrome !== 'undefined' && chrome.runtime) {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.action === 'shortcut-toggle-mic')       toggleMic();
+      if (msg.action === 'shortcut-toggle-sys-audio') toggleSystemAudio();
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Caption simulation (Exemplos)
+  // ─────────────────────────────────────────────────────────────────────────────
   const captionEl = document.getElementById('meet-caption');
   let typingTimer = null;
 

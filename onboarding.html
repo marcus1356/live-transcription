@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Translator – Configuração</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:      #0a0e13;
+      --surface: #111820;
+      --surface2:#18222e;
+      --border:  #1e2d3d;
+      --accent:  #1d9bf0;
+      --green:   #00ba7c;
+      --red:     #f4212e;
+      --yellow:  #eab308;
+      --text:    #e7e9ea;
+      --text2:   #71767b;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* ── Progress bar ── */
+    .progress-bar {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 3px; background: var(--border); z-index: 100;
+    }
+    .progress-fill {
+      height: 100%; background: var(--accent);
+      transition: width 0.4s ease;
+    }
+
+    /* ── Wizard layout ── */
+    .wizard {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .step {
+      display: none;
+      max-width: 520px; width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 36px;
+      text-align: center;
+      animation: fadeIn 0.3s ease;
+    }
+    .step.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+    .step-icon { font-size: 48px; margin-bottom: 16px; }
+    .step h1   { font-size: 22px; font-weight: 700; margin-bottom: 10px; color: #fff; }
+    .step p    { font-size: 14px; color: var(--text2); line-height: 1.7; margin-bottom: 20px; }
+
+    /* ── Step counter ── */
+    .step-counter {
+      font-size: 11px; color: var(--text2); margin-bottom: 20px;
+      letter-spacing: 0.5px; text-transform: uppercase;
+    }
+
+    /* ── Provider cards ── */
+    .cards { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; text-align: left; }
+
+    .card {
+      background: var(--surface2); border: 2px solid var(--border);
+      border-radius: 12px; padding: 16px 20px;
+      cursor: pointer; transition: border-color 0.2s, background 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+    .card.selected { border-color: var(--accent); background: rgba(29,155,240,0.07); }
+    .card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; color: #fff; }
+    .card-desc  { font-size: 12px; color: var(--text2); }
+    .card.anthropic .card-title { color: var(--accent); }
+    .card.openai    .card-title { color: #10a37f; }
+    .card.backend   .card-title { color: var(--text2); }
+
+    /* ── Input group ── */
+    .input-group { text-align: left; margin-bottom: 16px; }
+    .input-group label { display: block; font-size: 12px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .input-group input {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 11px 14px;
+      font-size: 14px; outline: none; transition: border-color 0.2s;
+    }
+    .input-group input:focus { border-color: var(--accent); }
+    .input-group a { font-size: 11px; color: var(--accent); text-decoration: none; float: right; margin-top: 5px; }
+    .input-group a:hover { text-decoration: underline; }
+
+    /* ── Buttons ── */
+    .btn-primary {
+      display: inline-block; background: var(--accent); color: #fff;
+      border: none; border-radius: 24px; padding: 13px 32px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s; width: 100%; margin-top: 8px;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-secondary {
+      display: inline-block; background: transparent; color: var(--text2);
+      border: 1px solid var(--border); border-radius: 24px; padding: 11px 28px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: color 0.2s, border-color 0.2s; width: 100%; margin-top: 8px;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--text2); }
+
+    .btn-success {
+      display: inline-block; background: var(--green); color: #fff;
+      border: none; border-radius: 24px; padding: 13px 32px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.2s; width: 100%; margin-top: 8px;
+    }
+    .btn-success:hover { opacity: 0.85; }
+
+    /* ── Test result ── */
+    #testResult {
+      margin-top: 12px; font-size: 13px; min-height: 20px;
+      padding: 8px 14px; border-radius: 8px; display: none;
+    }
+    #testResult.ok    { background: rgba(0,186,124,0.12); color: var(--green); display: block; }
+    #testResult.error { background: rgba(244,33,46,0.12); color: var(--red);   display: block; }
+
+    /* ── Success step ── */
+    .success-features {
+      text-align: left; margin: 16px 0 24px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .feat { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text2); }
+    .feat-icon { font-size: 16px; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<div class="progress-bar">
+  <div class="progress-fill" id="progressFill" style="width:25%"></div>
+</div>
+
+<div class="wizard">
+
+  <!-- Step 1: Welcome -->
+  <div class="step active" id="step1">
+    <div class="step-icon">🌐</div>
+    <div class="step-counter">Passo 1 de 4</div>
+    <h1>Bem-vindo ao Live Translator</h1>
+    <p>
+      Tradução simultânea em tempo real do inglês para o português.<br>
+      Funciona com Google Meet, Teams, Zoom e captura de microfone/áudio do sistema.
+    </p>
+    <div class="success-features">
+      <div class="feat"><span class="feat-icon">🎤</span> Captura seu microfone com Whisper AI</div>
+      <div class="feat"><span class="feat-icon">🖥</span> Captura o áudio do sistema / abas</div>
+      <div class="feat"><span class="feat-icon">📝</span> Detecta legendas no Google Meet e Teams</div>
+      <div class="feat"><span class="feat-icon">⚡</span> Tradução com Claude, GPT-4o ou Gemini</div>
+    </div>
+    <button class="btn-primary" onclick="goStep(2)">Começar →</button>
+  </div>
+
+  <!-- Step 2: Choose provider -->
+  <div class="step" id="step2">
+    <div class="step-icon">🤖</div>
+    <div class="step-counter">Passo 2 de 4</div>
+    <h1>Escolha seu provedor de IA</h1>
+    <p>Selecione como você quer que as traduções sejam feitas.</p>
+    <div class="cards">
+      <div class="card anthropic" id="card-anthropic" onclick="selectProvider('anthropic')">
+        <div class="card-title">Anthropic (Claude)</div>
+        <div class="card-desc">Claude Haiku — rápido e preciso. Requer API key sk-ant-...</div>
+      </div>
+      <div class="card openai" id="card-openai" onclick="selectProvider('openai')">
+        <div class="card-title">OpenAI (GPT-4o + Whisper)</div>
+        <div class="card-desc">GPT-4o-mini para tradução + Whisper para transcrição de áudio. Requer API key sk-...</div>
+      </div>
+      <div class="card backend" id="card-backend" onclick="selectProvider('backend')">
+        <div class="card-title">Backend próprio (Proxy)</div>
+        <div class="card-desc">Aponte para seu servidor local (ex: http://localhost:3001). As chaves ficam no servidor.</div>
+      </div>
+    </div>
+    <button class="btn-primary" id="step2Next" onclick="goStep(3)" disabled>Próximo →</button>
+    <button class="btn-secondary" onclick="goStep(1)">← Voltar</button>
+  </div>
+
+  <!-- Step 3: Configure key -->
+  <div class="step" id="step3">
+    <div class="step-icon">🔑</div>
+    <div class="step-counter">Passo 3 de 4</div>
+    <h1>Configure sua chave</h1>
+    <p id="step3Desc">Insira a API key do provedor escolhido.</p>
+
+    <div class="input-group" id="keyGroup">
+      <label id="keyLabel">API Key</label>
+      <input type="password" id="keyInput" placeholder="" autocomplete="off">
+      <a href="#" id="keyLink" target="_blank">Obter chave →</a>
+    </div>
+
+    <button class="btn-secondary" id="testBtn" onclick="testKey()" style="margin-bottom:0">
+      🧪 Testar tradução
+    </button>
+    <div id="testResult"></div>
+
+    <button class="btn-primary" id="step3Next" onclick="saveAndNext()" style="margin-top:16px">Salvar e continuar →</button>
+    <button class="btn-secondary" onclick="goStep(2)">← Voltar</button>
+  </div>
+
+  <!-- Step 4: Done! -->
+  <div class="step" id="step4">
+    <div class="step-icon">🎉</div>
+    <div class="step-counter">Passo 4 de 4</div>
+    <h1>Tudo pronto!</h1>
+    <p>Sua extensão está configurada e pronta para traduzir em tempo real.</p>
+    <div class="success-features">
+      <div class="feat"><span class="feat-icon">⌨️</span> Ctrl+Shift+M — ativar/desativar microfone</div>
+      <div class="feat"><span class="feat-icon">⌨️</span> Ctrl+Shift+S — ativar/desativar áudio do sistema</div>
+      <div class="feat"><span class="feat-icon">⌨️</span> Ctrl+Shift+E — exportar histórico</div>
+    </div>
+    <button class="btn-success" onclick="openApp()">🌐 Abrir App Tradutor</button>
+    <button class="btn-secondary" onclick="goStep(1)">← Início</button>
+  </div>
+
+</div>
+
+<script>
+  const STEPS = 4;
+  let currentStep   = 1;
+  let chosenProvider = null;
+
+  const KEY_LINKS = {
+    anthropic: 'https://console.anthropic.com/settings/keys',
+    openai:    'https://platform.openai.com/api-keys',
+    backend:   '',
+  };
+
+  const KEY_PLACEHOLDERS = {
+    anthropic: 'sk-ant-...',
+    openai:    'sk-...',
+    backend:   'http://localhost:3001',
+  };
+
+  const KEY_LABELS = {
+    anthropic: 'Anthropic API Key',
+    openai:    'OpenAI API Key',
+    backend:   'Backend URL',
+  };
+
+  function goStep(n) {
+    document.getElementById('step' + currentStep).classList.remove('active');
+    currentStep = n;
+    document.getElementById('step' + currentStep).classList.add('active');
+    document.getElementById('progressFill').style.width = (n / STEPS * 100) + '%';
+    document.getElementById('testResult').style.display = 'none';
+  }
+
+  function selectProvider(p) {
+    chosenProvider = p;
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('card-' + p).classList.add('selected');
+    document.getElementById('step2Next').disabled = false;
+  }
+
+  // Update step 3 UI when entering it
+  const _origGoStep = goStep;
+  function goStep(n) {
+    if (n === 3 && chosenProvider) {
+      const input = document.getElementById('keyInput');
+      const label = document.getElementById('keyLabel');
+      const link  = document.getElementById('keyLink');
+      const desc  = document.getElementById('step3Desc');
+
+      label.textContent       = KEY_LABELS[chosenProvider];
+      input.placeholder       = KEY_PLACEHOLDERS[chosenProvider];
+      input.type              = chosenProvider === 'backend' ? 'text' : 'password';
+      link.href               = KEY_LINKS[chosenProvider] || '#';
+      link.style.display      = KEY_LINKS[chosenProvider] ? '' : 'none';
+      desc.textContent        = chosenProvider === 'backend'
+        ? 'Insira a URL do seu servidor backend (ex: http://localhost:3001).'
+        : 'Insira a API key do provedor escolhido.';
+
+      // Pre-fill from storage
+      chrome.storage.sync.get(['apiKey', 'openaiKey', 'backendUrl'], (data) => {
+        if (chosenProvider === 'anthropic' && data.apiKey) input.value = data.apiKey;
+        if (chosenProvider === 'openai' && data.openaiKey) input.value = data.openaiKey;
+        if (chosenProvider === 'backend' && data.backendUrl) input.value = data.backendUrl;
+      });
+    }
+    document.getElementById('step' + currentStep).classList.remove('active');
+    currentStep = n;
+    document.getElementById('step' + currentStep).classList.add('active');
+    document.getElementById('progressFill').style.width = (n / STEPS * 100) + '%';
+    document.getElementById('testResult').style.display = 'none';
+  }
+
+  async function testKey() {
+    const val    = document.getElementById('keyInput').value.trim();
+    const result = document.getElementById('testResult');
+    const btn    = document.getElementById('testBtn');
+    if (!val) { showTestResult('error', 'Insira a chave antes de testar.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Testando...';
+
+    const sampleText = 'Hello, how are you today?';
+
+    try {
+      let ok = false, translation = '';
+
+      if (chosenProvider === 'anthropic') {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': val,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true',
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 100,
+            messages: [{ role: 'user', content: 'Translate to Brazilian Portuguese. Return ONLY the translation:\n\n' + sampleText }],
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          translation = data.content[0].text.trim();
+          ok = true;
+        } else {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error?.message || `HTTP ${res.status}`);
+        }
+      } else if (chosenProvider === 'openai') {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + val },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini', max_tokens: 100,
+            messages: [
+              { role: 'system', content: 'Translate English to Brazilian Portuguese. Return ONLY the translation.' },
+              { role: 'user', content: sampleText },
+            ],
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          translation = data.choices[0].message.content.trim();
+          ok = true;
+        } else {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error?.message || `HTTP ${res.status}`);
+        }
+      } else if (chosenProvider === 'backend') {
+        const url = val.replace(/\/$/, '');
+        const res = await fetch(`${url}/api/health`);
+        if (res.ok) {
+          translation = 'Backend respondeu com OK ✓';
+          ok = true;
+        } else {
+          throw new Error(`HTTP ${res.status}`);
+        }
+      }
+
+      if (ok) showTestResult('ok', `✓ Tradução: "${translation}"`);
+    } catch (err) {
+      showTestResult('error', '✗ Erro: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🧪 Testar tradução';
+    }
+  }
+
+  function showTestResult(type, msg) {
+    const el = document.getElementById('testResult');
+    el.textContent = msg;
+    el.className = type;
+    el.style.display = 'block';
+  }
+
+  function saveAndNext() {
+    const val = document.getElementById('keyInput').value.trim();
+    if (!val) { showTestResult('error', 'Insira a chave antes de continuar.'); return; }
+
+    const toSave = { enabled: true };
+    if (chosenProvider === 'anthropic') toSave.apiKey    = val;
+    if (chosenProvider === 'openai')    toSave.openaiKey = val;
+    if (chosenProvider === 'backend')   toSave.backendUrl = val.replace(/\/$/, '');
+
+    chrome.storage.sync.set(toSave, () => {
+      chrome.storage.local.set({ onboardingComplete: true }, () => {
+        goStep(4);
+      });
+    });
+  }
+
+  function openApp() {
+    chrome.tabs.create({ url: chrome.runtime.getURL('test.html') });
+    window.close();
+  }
+</script>
+
+</body>
+</html>

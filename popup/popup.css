@@ -63,11 +63,28 @@ input:checked + .slider::before { transform: translateX(22px); }
   font-size: 12px;
   font-weight: 600;
   color: #1d9bf0;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
+/* ── Onboarding banner ── */
+.onboarding-banner {
+  background: rgba(244,33,46,0.08);
+  border: 1px solid rgba(244,33,46,0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 12px;
+}
+.onboarding-banner a {
+  color: #1d9bf0;
+  text-decoration: none;
+  font-weight: 600;
+}
+.onboarding-banner a:hover { text-decoration: underline; }
+
 /* ── Section ── */
-.section { margin-bottom: 14px; }
+.section { margin-bottom: 12px; }
 
 .field-label {
   display: flex;
@@ -95,6 +112,11 @@ input:checked + .slider::before { transform: translateX(22px); }
   background: rgba(16,163,127,0.12);
   border-color: rgba(16,163,127,0.25);
   color: #10a37f;
+}
+.badge.gemini {
+  background: rgba(234,179,8,0.12);
+  border-color: rgba(234,179,8,0.25);
+  color: #eab308;
 }
 
 /* ── API Key input ── */
@@ -131,6 +153,48 @@ input:focus { border-color: #1d9bf0; }
   transition: border-color 0.2s;
 }
 .btn-icon:hover { border-color: #1d9bf0; }
+
+/* ── Collapsible sections ── */
+.collapse-header {
+  width: 100%;
+  background: #16202a;
+  border: 1px solid #2f3336;
+  border-radius: 8px;
+  color: #71767b;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  transition: border-color 0.2s, color 0.2s;
+}
+.collapse-header:hover { border-color: #1d9bf0; color: #e7e9ea; }
+.chevron { font-size: 12px; transition: transform 0.2s; }
+.chevron.open { transform: rotate(180deg); }
+
+.collapse-body {
+  padding: 4px 4px 0;
+}
+
+/* ── Glossary textarea ── */
+.glossary-area {
+  width: 100%;
+  background: #16202a;
+  border: 1px solid #2f3336;
+  border-radius: 8px;
+  color: #e7e9ea;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  outline: none;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.2s;
+}
+.glossary-area:focus { border-color: #1d9bf0; }
 
 /* ── Save button ── */
 .btn-output {
