@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Translator — Tradução em Tempo Real EN→PT</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e13;
+      --surface: #111820;
+      --surface2: #162030;
+      --accent: #1d9bf0;
+      --accent-hover: #1a8cd8;
+      --green: #00ba7c;
+      --red: #f4212e;
+      --text: #e7e9ea;
+      --text-muted: #71767b;
+      --border: #2f3336;
+      --radius: 12px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { color: inherit; text-decoration: none; }
+
+    /* ── Navbar ── */
+    .navbar {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 64px;
+      background: rgba(10, 14, 19, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 18px;
+    }
+    .nav-logo .logo-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), var(--green));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav-links {
+      display: flex; align-items: center; gap: 32px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text-muted); font-size: 15px;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-actions { display: flex; align-items: center; gap: 12px; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 9px 20px; border-radius: 999px; font-size: 15px; font-weight: 600;
+      cursor: pointer; border: none; transition: all .2s; white-space: nowrap;
+    }
+    .btn-ghost { background: transparent; color: var(--text-muted); }
+    .btn-ghost:hover { color: var(--text); background: var(--surface); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+    .btn-outline { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+    .btn-outline:hover { background: var(--accent); color: #fff; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-green:hover { background: #00a36d; transform: translateY(-1px); }
+    .btn-lg { padding: 14px 28px; font-size: 16px; }
+
+    .hamburger {
+      display: none; flex-direction: column; gap: 5px;
+      cursor: pointer; padding: 4px; background: none; border: none;
+    }
+    .hamburger span {
+      display: block; width: 24px; height: 2px;
+      background: var(--text); border-radius: 2px;
+      transition: all .3s;
+    }
+    .mobile-menu {
+      display: none; position: fixed; top: 64px; left: 0; right: 0;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 20px 24px; z-index: 99;
+      flex-direction: column; gap: 16px;
+    }
+    .mobile-menu.open { display: flex; }
+    .mobile-menu a { font-size: 17px; color: var(--text-muted); padding: 8px 0; }
+    .mobile-menu a:hover { color: var(--text); }
+    .mobile-menu .btn { width: 100%; }
+
+    /* ── Sections ── */
+    section { padding: 80px 24px; }
+    .container { max-width: 1100px; margin: 0 auto; }
+    .section-label {
+      display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: 1.5px;
+      text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(28px, 5vw, 44px); font-weight: 800; line-height: 1.2;
+      margin-bottom: 16px;
+    }
+    .section-sub {
+      font-size: 18px; color: var(--text-muted); max-width: 560px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding-top: 140px; padding-bottom: 80px;
+      display: grid; grid-template-columns: 1fr; gap: 60px; align-items: center;
+    }
+    @media (min-width: 900px) {
+      .hero { grid-template-columns: 1fr 1fr; padding-top: 160px; }
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 14px; font-size: 13px;
+      color: var(--text-muted); margin-bottom: 24px;
+    }
+    .hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .hero-title {
+      font-size: clamp(36px, 6vw, 64px); font-weight: 800; line-height: 1.1;
+      margin-bottom: 24px;
+    }
+    .hero-title span { color: var(--accent); }
+    .hero-sub {
+      font-size: 18px; color: var(--text-muted); margin-bottom: 36px; max-width: 500px;
+    }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .hero-stats {
+      display: flex; gap: 32px; margin-top: 40px; flex-wrap: wrap;
+    }
+    .hero-stat { }
+    .hero-stat-n { font-size: 24px; font-weight: 800; color: var(--text); }
+    .hero-stat-l { font-size: 13px; color: var(--text-muted); }
+
+    /* Demo card */
+    .demo-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .demo-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--green));
+    }
+    .demo-card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .demo-card-title { font-size: 13px; font-weight: 600; color: var(--text-muted); letter-spacing: 1px; text-transform: uppercase; }
+    .demo-live-badge {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(0,186,124,.15); color: var(--green);
+      padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    }
+    .demo-live-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s infinite; }
+    .demo-entry {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px; padding: 16px; margin-bottom: 12px;
+    }
+    .demo-en { font-size: 14px; color: var(--text-muted); margin-bottom: 8px; }
+    .demo-pt { font-size: 16px; font-weight: 600; color: var(--text); }
+    .demo-active {
+      border-color: var(--accent);
+      background: rgba(29,155,240,.05);
+    }
+    .demo-active .demo-pt {
+      border-right: 2px solid var(--accent);
+      padding-right: 4px;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink { 0%,100%{border-color:var(--accent)} 50%{border-color:transparent} }
+    .demo-provider {
+      display: flex; align-items: center; gap: 6px; margin-top: 4px;
+    }
+    .demo-provider-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+    .demo-provider-label { font-size: 11px; color: var(--text-muted); }
+
+    /* ── How it works ── */
+    .steps { display: grid; grid-template-columns: 1fr; gap: 32px; margin-top: 56px; }
+    @media (min-width: 700px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+    .step {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 32px;
+      transition: border-color .2s, transform .2s;
+    }
+    .step:hover { border-color: var(--accent); transform: translateY(-4px); }
+    .step-num {
+      width: 48px; height: 48px; border-radius: 12px;
+      background: rgba(29,155,240,.15); color: var(--accent);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; margin-bottom: 20px;
+    }
+    .step h3 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .step p { color: var(--text-muted); font-size: 15px; }
+
+    /* ── Para quem ── */
+    .audience-cards { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 56px; }
+    @media (min-width: 700px) { .audience-cards { grid-template-columns: repeat(3, 1fr); } }
+    .audience-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 32px;
+      transition: border-color .2s, transform .2s;
+    }
+    .audience-card:hover { border-color: var(--green); transform: translateY(-4px); }
+    .audience-icon { font-size: 36px; margin-bottom: 16px; }
+    .audience-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+    .audience-card p { color: var(--text-muted); font-size: 15px; }
+
+    /* ── Pricing ── */
+    .pricing-grid { display: grid; grid-template-columns: 1fr; gap: 24px; margin-top: 56px; }
+    @media (min-width: 700px) { .pricing-grid { grid-template-columns: repeat(3, 1fr); } }
+    .pricing-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 32px;
+      display: flex; flex-direction: column;
+      transition: transform .2s;
+    }
+    .pricing-card.popular {
+      border-color: var(--accent);
+      position: relative; transform: scale(1.02);
+    }
+    .popular-badge {
+      position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+      background: var(--accent); color: #fff;
+      padding: 4px 16px; border-radius: 999px; font-size: 12px; font-weight: 700;
+      white-space: nowrap;
+    }
+    .plan-name { font-size: 14px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .plan-price { font-size: 42px; font-weight: 800; margin-bottom: 4px; }
+    .plan-price span { font-size: 18px; font-weight: 400; color: var(--text-muted); }
+    .plan-desc { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+    .plan-features { list-style: none; margin-bottom: 32px; flex: 1; }
+    .plan-features li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 15px; padding: 8px 0; border-bottom: 1px solid var(--border);
+    }
+    .plan-features li:last-child { border-bottom: none; }
+    .check { color: var(--green); font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+
+    /* ── FAQ ── */
+    .faq-list { margin-top: 56px; display: flex; flex-direction: column; gap: 12px; }
+    .faq-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .faq-q {
+      width: 100%; display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 24px; background: none; border: none; color: var(--text);
+      font-size: 16px; font-weight: 600; cursor: pointer; text-align: left;
+    }
+    .faq-q:hover { background: var(--surface2); }
+    .faq-icon { font-size: 20px; color: var(--accent); transition: transform .3s; flex-shrink: 0; }
+    .faq-item.open .faq-icon { transform: rotate(45deg); }
+    .faq-a {
+      max-height: 0; overflow: hidden; transition: max-height .35s ease;
+      color: var(--text-muted); font-size: 15px; line-height: 1.7;
+    }
+    .faq-a-inner { padding: 0 24px 20px; }
+    .faq-item.open .faq-a { max-height: 300px; }
+
+    /* ── Footer ── */
+    .footer {
+      background: var(--surface); border-top: 1px solid var(--border);
+      padding: 48px 24px 32px;
+    }
+    .footer-inner {
+      max-width: 1100px; margin: 0 auto;
+      display: grid; grid-template-columns: 1fr; gap: 40px;
+    }
+    @media (min-width: 700px) {
+      .footer-inner { grid-template-columns: 2fr 1fr 1fr; }
+    }
+    .footer-brand p { color: var(--text-muted); font-size: 14px; margin-top: 12px; max-width: 280px; }
+    .footer-col h4 { font-size: 14px; font-weight: 700; margin-bottom: 16px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .footer-col a { display: block; color: var(--text-muted); font-size: 14px; margin-bottom: 10px; transition: color .2s; }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom {
+      max-width: 1100px; margin: 32px auto 0;
+      padding-top: 24px; border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: gap;
+      color: var(--text-muted); font-size: 13px;
+    }
+
+    @media (max-width: 768px) {
+      .nav-links, .nav-actions .btn-ghost { display: none; }
+      .hamburger { display: flex; }
+      .hero { padding-top: 100px; }
+      .pricing-card.popular { transform: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Navbar ── -->
+<nav class="navbar">
+  <a href="/" class="nav-logo">
+    <div class="logo-icon">🌐</div>
+    Live Translator
+  </a>
+  <ul class="nav-links">
+    <li><a href="#como-funciona">Como funciona</a></li>
+    <li><a href="#precos">Preços</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ul>
+  <div class="nav-actions">
+    <a href="/auth.html" class="btn btn-ghost">Entrar</a>
+    <a href="/auth.html?tab=register" class="btn btn-primary">Começar grátis</a>
+    <button class="hamburger" id="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#como-funciona">Como funciona</a>
+  <a href="#precos">Preços</a>
+  <a href="#faq">FAQ</a>
+  <a href="/auth.html" class="btn btn-ghost" style="justify-content:flex-start;padding-left:0">Entrar</a>
+  <a href="/auth.html?tab=register" class="btn btn-primary">Começar grátis</a>
+</div>
+
+<!-- ── Hero ── -->
+<section id="hero" style="padding-top:0">
+  <div class="container hero">
+    <div>
+      <div class="hero-badge">
+        <span class="dot"></span>
+        Tradução ao vivo com IA
+      </div>
+      <h1 class="hero-title">
+        Entenda inglês<br>em tempo <span>real</span>
+      </h1>
+      <p class="hero-sub">
+        Transcrição e tradução instantânea EN→PT-BR via IA. Perfeito para aulas, meetings, podcasts e videoconferências.
+      </p>
+      <div class="hero-actions">
+        <a href="/auth.html?tab=register" class="btn btn-primary btn-lg">Começar grátis</a>
+        <a href="#precos" class="btn btn-outline btn-lg">Ver planos</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-n">30</div>
+          <div class="hero-stat-l">Traduções grátis/dia</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-n">&lt;1s</div>
+          <div class="hero-stat-l">Latência média</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-n">3 IAs</div>
+          <div class="hero-stat-l">Claude, GPT, Gemini</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="demo-card">
+        <div class="demo-card-header">
+          <span class="demo-card-title">Ao vivo agora</span>
+          <span class="demo-live-badge"><span class="dot"></span> AO VIVO</span>
+        </div>
+        <div id="demoFeed"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+          <div class="demo-provider">
+            <span class="demo-provider-dot"></span>
+            <span class="demo-provider-label" id="demoProvider">Claude Haiku</span>
+          </div>
+          <span style="font-size:11px;color:var(--text-muted)">Web Speech API + IA</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Como funciona ── -->
+<section id="como-funciona">
+  <div class="container" style="text-align:center">
+    <span class="section-label">Como funciona</span>
+    <h2 class="section-title" style="margin:0 auto 16px">Simples como apertar um botão</h2>
+    <p class="section-sub" style="margin:0 auto">Sem instalar nada extra. Funciona direto no seu navegador, inclusive no celular.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">🎙️</div>
+        <h3>1. Abra o app</h3>
+        <p>Acesse <strong>app.livetranslator.com.br</strong> no seu celular ou computador. Faça login com e-mail — sem configuração de API key.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">🔴</div>
+        <h3>2. Aperte gravar</h3>
+        <p>Pressione o botão vermelho e fale (ou apontye o microfone para o áudio). O Web Speech API capta em inglês instantaneamente.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">✨</div>
+        <h3>3. Leia a tradução</h3>
+        <p>A IA traduz cada frase para português em menos de 1 segundo. Histórico completo na tela, pronto para copiar ou exportar.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Para quem é ── -->
+<section id="para-quem" style="background:var(--surface);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+  <div class="container" style="text-align:center">
+    <span class="section-label">Para quem é</span>
+    <h2 class="section-title" style="margin:0 auto 16px">Feito para quem estuda e trabalha</h2>
+    <p class="section-sub" style="margin:0 auto">De alunos a professores, de devs a equipes corporativas.</p>
+    <div class="audience-cards">
+      <div class="audience-card">
+        <div class="audience-icon">🎓</div>
+        <h3>Alunos de inglês</h3>
+        <p>Acompanhe aulas de inglês, podcasts e YouTube com tradução em tempo real. Aprenda ouvindo, com o PT-BR na tela.</p>
+      </div>
+      <div class="audience-card">
+        <div class="audience-icon">🏫</div>
+        <h3>Escolas e cursos</h3>
+        <p>Plano School para até 50 alunos com painel admin, relatórios de uso e onboarding dedicado. Ideal para cursos bilíngues.</p>
+      </div>
+      <div class="audience-card">
+        <div class="audience-icon">💻</div>
+        <h3>Profissionais</h3>
+        <p>Meetings internacionais, conferências e podcasts técnicos. Plano Pro com traduções ilimitadas e transcrição Whisper IA.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ── -->
+<section id="precos">
+  <div class="container" style="text-align:center">
+    <span class="section-label">Preços</span>
+    <h2 class="section-title" style="margin:0 auto 16px">Comece grátis, cresça quando precisar</h2>
+    <p class="section-sub" style="margin:0 auto">Sem cartão de crédito para começar. Cancele quando quiser.</p>
+    <div class="pricing-grid">
+      <!-- Free -->
+      <div class="pricing-card">
+        <div class="plan-name">Grátis</div>
+        <div class="plan-price">R$0<span>/mês</span></div>
+        <div class="plan-desc">Para testar e uso leve</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> 30 traduções por dia</li>
+          <li><span class="check">✓</span> Web Speech API (microfone)</li>
+          <li><span class="check">✓</span> Histórico básico da sessão</li>
+          <li><span class="check">✓</span> Acesso pelo celular</li>
+          <li><span class="check">✓</span> Sem cartão de crédito</li>
+        </ul>
+        <a href="/auth.html?tab=register" class="btn btn-outline">Criar conta grátis</a>
+      </div>
+      <!-- Pro -->
+      <div class="pricing-card popular">
+        <div class="popular-badge">Mais popular</div>
+        <div class="plan-name">Pro</div>
+        <div class="plan-price">R$19<span>/mês</span></div>
+        <div class="plan-desc">Para uso diário intenso</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Traduções ilimitadas</li>
+          <li><span class="check">✓</span> Whisper IA (+ preciso)</li>
+          <li><span class="check">✓</span> Glossário personalizado</li>
+          <li><span class="check">✓</span> Exportar SRT/TXT</li>
+          <li><span class="check">✓</span> Suporte prioritário</li>
+        </ul>
+        <a href="/auth.html?tab=register" class="btn btn-primary">Assinar Pro</a>
+      </div>
+      <!-- School -->
+      <div class="pricing-card">
+        <div class="plan-name">Escola</div>
+        <div class="plan-price">R$97<span>/mês</span></div>
+        <div class="plan-desc">Para escolas e cursos</div>
+        <ul class="plan-features">
+          <li><span class="check">✓</span> Até 50 alunos</li>
+          <li><span class="check">✓</span> Painel administrativo</li>
+          <li><span class="check">✓</span> Relatórios de uso</li>
+          <li><span class="check">✓</span> Onboarding dedicado</li>
+          <li><span class="check">✓</span> Tudo do Pro</li>
+        </ul>
+        <a href="mailto:contato@livetranslator.com.br" class="btn btn-outline">Falar com a equipe</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FAQ ── -->
+<section id="faq" style="background:var(--surface);border-top:1px solid var(--border)">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:0">
+      <span class="section-label">FAQ</span>
+      <h2 class="section-title" style="margin:0 auto 16px">Perguntas frequentes</h2>
+    </div>
+    <div class="faq-list">
+      <div class="faq-item">
+        <button class="faq-q">
+          Preciso instalar alguma extensão ou app?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Não! O Live Translator é 100% baseado em navegador. Funciona no Chrome, Edge ou Safari — desktop e celular. Basta criar uma conta e usar. Opcionalmente, existe uma extensão para Chrome que integra diretamente com vídeos do YouTube e Meet.
+        </div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">
+          Como funciona o limite de 30 traduções do plano grátis?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Cada frase ou trecho de áudio transcrito e traduzido conta como 1 tradução. O contador reseta toda meia-noite (horário de Brasília). Para uso intenso em aulas ou meetings longos, recomendamos o plano Pro com traduções ilimitadas.
+        </div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">
+          Qual a diferença entre Web Speech e Whisper IA?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          O Web Speech API é nativo do Chrome/Edge e funciona offline e com baixa latência — ótimo para uso geral. O Whisper da OpenAI (disponível no plano Pro) é um modelo de transcrição de alta precisão, melhor com sotaques, terminologia técnica e áudio com ruído.
+        </div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">
+          Meu áudio é gravado ou armazenado?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Não armazenamos gravações de áudio. O áudio é processado em tempo real e descartado imediatamente após a transcrição. Apenas as traduções em texto são mantidas temporariamente na sessão do navegador para exibição no histórico.
+        </div></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-q">
+          Posso usar no iPhone ou Android?
+          <span class="faq-icon">+</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Sim! O app é mobile-first e funciona no Chrome para Android. No iPhone/Safari, o Web Speech API pode ter limitações — recomendamos usar Chrome para Android ou o Chrome para Desktop para melhor experiência.
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <div class="nav-logo" style="display:inline-flex">
+        <div class="logo-icon">🌐</div>
+        Live Translator
+      </div>
+      <p>Tradução em tempo real English→Portuguese com inteligência artificial. Para estudantes, escolas e profissionais.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Produto</h4>
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#precos">Preços</a>
+      <a href="/app.html">Abrir app</a>
+      <a href="/auth.html">Login</a>
+    </div>
+    <div class="footer-col">
+      <h4>Suporte</h4>
+      <a href="#faq">FAQ</a>
+      <a href="mailto:contato@livetranslator.com.br">Contato</a>
+      <a href="#">Termos de uso</a>
+      <a href="#">Privacidade</a>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2025 Live Translator. Todos os direitos reservados.</span>
+    <span>Feito com ☕ no Brasil</span>
+  </div>
+</footer>
+
+<script>
+  // ── Hamburger menu ──
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburger.addEventListener('click', () => {
+    mobileMenu.classList.toggle('open');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => mobileMenu.classList.remove('open'));
+  });
+
+  // ── FAQ accordion ──
+  document.querySelectorAll('.faq-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const wasOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
+      if (!wasOpen) item.classList.add('open');
+    });
+  });
+
+  // ── Demo card animation ──
+  const demos = [
+    { en: "Good morning everyone, let's get started.", pt: "Bom dia a todos, vamos começar." },
+    { en: "The meeting will be held on Friday afternoon.", pt: "A reunião acontecerá na tarde de sexta-feira." },
+    { en: "Please review the documents before tomorrow.", pt: "Por favor, revise os documentos antes de amanhã." },
+    { en: "We need to improve our quarterly performance.", pt: "Precisamos melhorar nosso desempenho trimestral." },
+    { en: "Can you share your screen with the team?", pt: "Você pode compartilhar sua tela com a equipe?" },
+    { en: "The deadline has been moved to next week.", pt: "O prazo foi adiado para a próxima semana." },
+  ];
+  const providers = ['Claude Haiku', 'GPT-4o mini', 'Gemini Flash'];
+  let demoIdx = 0;
+
+  function renderDemo() {
+    const feed = document.getElementById('demoFeed');
+    const prev = demos[(demoIdx - 1 + demos.length) % demos.length];
+    const curr = demos[demoIdx];
+    const provEl = document.getElementById('demoProvider');
+    provEl.textContent = providers[demoIdx % providers.length];
+
+    feed.innerHTML = `
+      <div class="demo-entry">
+        <div class="demo-en">🇺🇸 ${prev.en}</div>
+        <div class="demo-pt">🇧🇷 ${prev.pt}</div>
+      </div>
+      <div class="demo-entry demo-active">
+        <div class="demo-en">🇺🇸 ${curr.en}</div>
+        <div class="demo-pt">🇧🇷 ${curr.pt}</div>
+        <div class="demo-provider">
+          <span class="demo-provider-dot"></span>
+          <span class="demo-provider-label">${providers[demoIdx % providers.length]}</span>
+        </div>
+      </div>
+    `;
+    demoIdx = (demoIdx + 1) % demos.length;
+  }
+
+  renderDemo();
+  setInterval(renderDemo, 3000);
+
+  // ── Smooth scroll for anchor links ──
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
+</body>
+</html>

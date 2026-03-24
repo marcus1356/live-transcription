@@ -1,0 +1,45 @@
+version: '3.9'
+
+services:
+
+  app:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ./server/.env
+    environment:
+      - PORT=3001
+      - DB_PATH=/data/data.sqlite
+    volumes:
+      - sqlite_data:/data
+    ports:
+      - "3001:3001"          # direct access during dev / if no nginx
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro    # drop your SSL certs here
+    depends_on:
+      app:
+        condition: service_healthy
+    networks:
+      - internal
+
+volumes:
+  sqlite_data:
+
+networks:
+  internal:

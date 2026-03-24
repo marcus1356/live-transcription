@@ -9,3 +9,13 @@ Thumbs.db
 # Extension build artifacts
 *.zip
 dist/
+
+# Server
+server/node_modules/
+server/.env
+server/data.sqlite
+server/data.sqlite-shm
+server/data.sqlite-wal
+
+# Nginx SSL certs (never commit private keys)
+nginx/certs/
