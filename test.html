@@ -234,6 +234,134 @@
     }
     .phrase-btn:hover { background: #1e2d3d; color: var(--text); border-color: var(--accent); }
     .phrase-btn.active { border-color: var(--accent); color: var(--accent); }
+
+    /* ── Settings Panel ────────────────────────────────────────────────────── */
+    .settings-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      z-index: 200; backdrop-filter: blur(2px);
+    }
+    .settings-overlay.open { display: block; }
+    .settings-panel {
+      position: fixed; right: 0; top: 0; bottom: 0; width: 320px;
+      background: var(--surface); border-left: 1px solid var(--border);
+      z-index: 201; display: flex; flex-direction: column;
+      transform: translateX(100%); transition: transform 0.25s ease;
+      overflow-y: auto;
+    }
+    .settings-panel.open { transform: translateX(0); }
+    .sp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+      position: sticky; top: 0; background: var(--surface); z-index: 1;
+    }
+    .sp-title { font-size: 15px; font-weight: 700; color: #fff; }
+    .sp-close { background: none; border: none; color: var(--text2); font-size: 18px; cursor: pointer; padding: 2px 6px; border-radius: 6px; line-height: 1; }
+    .sp-close:hover { color: var(--text); background: var(--surface2); }
+    .sp-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+    .sp-section { display: flex; flex-direction: column; gap: 7px; }
+    .sp-label {
+      display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600;
+      color: var(--text2); text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .sp-badge {
+      background: rgba(29,155,240,0.12); border: 1px solid rgba(29,155,240,0.25);
+      color: var(--accent); border-radius: 10px; padding: 1px 7px;
+      font-size: 10px; text-transform: none; letter-spacing: 0; font-weight: 600;
+    }
+    .sp-badge.openai { background: rgba(16,163,127,0.12); border-color: rgba(16,163,127,0.25); color: #10a37f; }
+    .sp-badge.gemini { background: rgba(234,179,8,0.12); border-color: rgba(234,179,8,0.25); color: #eab308; }
+    .sp-input-row { display: flex; gap: 6px; align-items: center; }
+    .sp-input {
+      flex: 1; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 9px 12px;
+      font-size: 13px; outline: none; transition: border-color 0.2s; min-width: 0;
+    }
+    .sp-input:focus { border-color: var(--accent); }
+    .sp-eye {
+      flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 9px 10px; cursor: pointer; font-size: 14px;
+      color: var(--text); transition: border-color 0.2s;
+    }
+    .sp-eye:hover { border-color: var(--accent); }
+    .sp-textarea {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 9px 12px;
+      font-size: 12px; font-family: 'Consolas', monospace; outline: none;
+      resize: vertical; min-height: 80px; transition: border-color 0.2s;
+    }
+    .sp-textarea:focus { border-color: var(--accent); }
+    .sp-divider { border: none; border-top: 1px solid var(--border); margin: 2px 0; }
+    .sp-hint { font-size: 11px; color: var(--text2); line-height: 1.4; }
+    .sp-save-btn {
+      background: var(--accent); color: #fff; border: none; border-radius: 20px;
+      padding: 11px; font-size: 14px; font-weight: 700; cursor: pointer;
+      width: 100%; transition: opacity 0.2s; margin-top: 4px;
+    }
+    .sp-save-btn:hover { opacity: 0.85; }
+    .sp-status { text-align: center; font-size: 12px; min-height: 16px; color: var(--green); }
+    .sp-status.error { color: var(--red); }
+
+    /* ── Onboarding Modal ───────────────────────────────────────────────────── */
+    .ob-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(10,14,19,0.94);
+      z-index: 300; align-items: center; justify-content: center; padding: 20px;
+      backdrop-filter: blur(4px);
+    }
+    .ob-overlay.open { display: flex; }
+    .ob-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 32px 28px; width: 100%; max-width: 440px;
+    }
+    .ob-step { display: none; text-align: center; animation: fadeIn 0.25s ease; }
+    .ob-step.active { display: block; }
+    .ob-icon { font-size: 42px; margin-bottom: 12px; }
+    .ob-card h2 { font-size: 19px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+    .ob-card > .ob-step > p { font-size: 13px; color: var(--text2); line-height: 1.7; margin-bottom: 16px; }
+    .ob-progress { display: flex; gap: 6px; justify-content: center; margin-bottom: 22px; }
+    .ob-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: background 0.2s; }
+    .ob-dot.active { background: var(--accent); }
+    .ob-provider-cards { display: flex; flex-direction: column; gap: 7px; margin-bottom: 16px; text-align: left; }
+    .ob-pcard {
+      background: var(--surface2); border: 2px solid var(--border); border-radius: 10px;
+      padding: 12px 14px; cursor: pointer; transition: border-color 0.2s;
+    }
+    .ob-pcard:hover { border-color: rgba(29,155,240,0.4); }
+    .ob-pcard.selected { border-color: var(--accent); background: rgba(29,155,240,0.07); }
+    .ob-pcard-title { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 2px; }
+    .ob-pcard-desc { font-size: 11px; color: var(--text2); }
+    .ob-pcard.anthropic .ob-pcard-title { color: var(--accent); }
+    .ob-pcard.openai    .ob-pcard-title { color: #10a37f; }
+    .ob-pcard.gemini    .ob-pcard-title { color: #eab308; }
+    .ob-input-group { text-align: left; margin-bottom: 12px; }
+    .ob-key-label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px; }
+    .ob-key-input {
+      width: 100%; background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; color: var(--text); padding: 11px 14px; font-size: 14px; outline: none;
+      transition: border-color 0.2s;
+    }
+    .ob-key-input:focus { border-color: var(--accent); }
+    .ob-test-result {
+      display: none; margin-top: 8px; font-size: 12px; padding: 8px 12px;
+      border-radius: 8px; text-align: left;
+    }
+    .ob-test-result.ok    { background: rgba(0,186,124,0.12); color: var(--green); display: block; }
+    .ob-test-result.error { background: rgba(244,33,46,0.12); color: var(--red); display: block; }
+    .ob-btn-primary {
+      width: 100%; background: var(--accent); color: #fff; border: none;
+      border-radius: 24px; padding: 12px; font-size: 14px; font-weight: 700;
+      cursor: pointer; transition: opacity 0.2s; margin-top: 8px;
+    }
+    .ob-btn-primary:hover { opacity: 0.85; }
+    .ob-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .ob-btn-secondary {
+      width: 100%; background: transparent; color: var(--text2); border: 1px solid var(--border);
+      border-radius: 24px; padding: 9px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: color 0.2s, border-color 0.2s; margin-top: 6px;
+    }
+    .ob-btn-secondary:hover { color: var(--text); border-color: var(--text2); }
+    .ob-features { text-align: left; display: flex; flex-direction: column; gap: 7px; margin: 8px 0 18px; }
+    .ob-feat { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text2); }
+    .ob-feat-icon { font-size: 15px; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -272,6 +400,7 @@
         <span id="micIcon">🎤</span>
         <span id="micLabel">Microfone</span>
       </button>
+      <button class="btn-icon" id="settingsBtn" title="Configurações" onclick="openSettings()">⚙</button>
       <button class="btn-icon" title="Limpar histórico" onclick="clearFeed()">🗑</button>
     </div>
   </header>
@@ -351,6 +480,119 @@
   <button class="phrase-btn" onclick="firePhrase(this)">Now let's practice with some exercises. Open your books to page forty-two.</button>
   <button class="phrase-btn" onclick="firePhrase(this)">Remember to use the present perfect with already, yet, and just.</button>
   <button class="phrase-btn" onclick="firePhrase(this)">Great job everyone! See you next Thursday for our conversation practice.</button>
+</div>
+
+<!-- ── Settings Panel ── -->
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<aside class="settings-panel" id="settingsPanel">
+  <div class="sp-header">
+    <span class="sp-title">⚙ Configurações</span>
+    <button class="sp-close" onclick="closeSettings()">✕</button>
+  </div>
+  <div class="sp-body">
+    <div class="sp-section">
+      <label class="sp-label">Anthropic API Key <span class="sp-badge">Claude</span></label>
+      <div class="sp-input-row">
+        <input class="sp-input" type="password" id="sp-apiKey" placeholder="sk-ant-..." autocomplete="off">
+        <button class="sp-eye" onclick="spToggleKey('sp-apiKey',this)">👁</button>
+      </div>
+    </div>
+    <div class="sp-section">
+      <label class="sp-label">OpenAI API Key <span class="sp-badge openai">Whisper + GPT</span></label>
+      <div class="sp-input-row">
+        <input class="sp-input" type="password" id="sp-openaiKey" placeholder="sk-..." autocomplete="off">
+        <button class="sp-eye" onclick="spToggleKey('sp-openaiKey',this)">👁</button>
+      </div>
+    </div>
+    <div class="sp-section">
+      <label class="sp-label">Gemini API Key <span class="sp-badge gemini">Gemini 1.5</span></label>
+      <div class="sp-input-row">
+        <input class="sp-input" type="password" id="sp-geminiKey" placeholder="AIza..." autocomplete="off">
+        <button class="sp-eye" onclick="spToggleKey('sp-geminiKey',this)">👁</button>
+      </div>
+    </div>
+    <hr class="sp-divider">
+    <div class="sp-section">
+      <label class="sp-label">Backend URL <span class="sp-badge" style="background:rgba(113,118,123,0.12);border-color:rgba(113,118,123,0.25);color:#71767b;">Proxy</span></label>
+      <input class="sp-input" type="text" id="sp-backendUrl" placeholder="http://localhost:3001" autocomplete="off" style="width:100%">
+      <span class="sp-hint">As chamadas de API passam pelo servidor.</span>
+    </div>
+    <hr class="sp-divider">
+    <div class="sp-section">
+      <label class="sp-label">Glossário</label>
+      <span class="sp-hint" style="margin-bottom:4px">Um por linha: <code style="color:#e7e9ea">inglês = português</code></span>
+      <textarea class="sp-textarea" id="sp-glossaryText" placeholder="machine learning = aprendizado de máquina&#10;pipeline = pipeline&#10;deploy = implantação"></textarea>
+    </div>
+    <div id="sp-status" class="sp-status"></div>
+    <button class="sp-save-btn" onclick="saveSettings()">Salvar</button>
+  </div>
+</aside>
+
+<!-- ── Onboarding Modal ── -->
+<div class="ob-overlay" id="obOverlay">
+  <div class="ob-card">
+    <div class="ob-progress">
+      <div class="ob-dot active" id="obDot1"></div>
+      <div class="ob-dot" id="obDot2"></div>
+      <div class="ob-dot" id="obDot3"></div>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="ob-step active" id="obStep1">
+      <div class="ob-icon">🌐</div>
+      <h2>Bem-vindo ao Live Translator</h2>
+      <p>Tradução simultânea em tempo real do inglês para o português. Configure sua chave de API para começar.</p>
+      <div class="ob-features">
+        <div class="ob-feat"><span class="ob-feat-icon">🎤</span> Microfone com Whisper AI</div>
+        <div class="ob-feat"><span class="ob-feat-icon">🖥</span> Áudio do sistema e abas</div>
+        <div class="ob-feat"><span class="ob-feat-icon">📝</span> Legendas do Google Meet / Teams</div>
+        <div class="ob-feat"><span class="ob-feat-icon">⚡</span> Claude, GPT-4o ou Gemini</div>
+      </div>
+      <button class="ob-btn-primary" onclick="obGoStep(2)">Começar →</button>
+      <button class="ob-btn-secondary" onclick="obClose()">Explorar sem chave (MyMemory)</button>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="ob-step" id="obStep2">
+      <div class="ob-icon">🤖</div>
+      <h2>Escolha o provedor</h2>
+      <p>Selecione como as traduções serão feitas.</p>
+      <div class="ob-provider-cards">
+        <div class="ob-pcard anthropic" id="obCard-anthropic" onclick="obSelectProvider('anthropic')">
+          <div class="ob-pcard-title">Anthropic (Claude Haiku)</div>
+          <div class="ob-pcard-desc">Rápido e preciso — chave sk-ant-...</div>
+        </div>
+        <div class="ob-pcard openai" id="obCard-openai" onclick="obSelectProvider('openai')">
+          <div class="ob-pcard-title">OpenAI (GPT-4o + Whisper)</div>
+          <div class="ob-pcard-desc">Tradução + transcrição de áudio — chave sk-...</div>
+        </div>
+        <div class="ob-pcard gemini" id="obCard-gemini" onclick="obSelectProvider('gemini')">
+          <div class="ob-pcard-title">Google Gemini 1.5</div>
+          <div class="ob-pcard-desc">Alternativa gratuita — chave AIza...</div>
+        </div>
+        <div class="ob-pcard" id="obCard-backend" onclick="obSelectProvider('backend')">
+          <div class="ob-pcard-title" style="color:var(--text2)">Backend próprio (Proxy)</div>
+          <div class="ob-pcard-desc">Servidor local — ex: http://localhost:3001</div>
+        </div>
+      </div>
+      <button class="ob-btn-primary" id="obStep2Next" onclick="obGoStep(3)" disabled>Próximo →</button>
+      <button class="ob-btn-secondary" onclick="obGoStep(1)">← Voltar</button>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="ob-step" id="obStep3">
+      <div class="ob-icon">🔑</div>
+      <h2>Configure sua chave</h2>
+      <div class="ob-input-group">
+        <label class="ob-key-label" id="obKeyLabel">API Key</label>
+        <input class="ob-key-input" type="password" id="obKeyInput" placeholder="" autocomplete="off">
+      </div>
+      <button class="ob-btn-secondary" onclick="obTestKey()" id="obTestBtn">🧪 Testar chave</button>
+      <div class="ob-test-result" id="obTestResult"></div>
+      <button class="ob-btn-primary" onclick="obSaveAndClose()">Salvar e começar →</button>
+      <button class="ob-btn-secondary" onclick="obGoStep(2)">← Voltar</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -619,9 +861,9 @@
     const el   = addEntry(text, sourceTag);
     const keys = cachedKeys;
 
-    if (typeof chrome === 'undefined' || !chrome.runtime) {
+    if (typeof chrome === 'undefined' || !chrome.runtime?.id) {
       inFlight = false;
-      updatePT(el, '(extensão não detectada)');
+      updatePT(el, '⚠ Extensão não ativa — reabra pela extensão ou pressione F5');
       return;
     }
 
@@ -651,6 +893,7 @@
   // Transcription helper (Items 1, 15, 18)
   // ─────────────────────────────────────────────────────────────────────────────
   function sendForTranscription(base64, mimeType, sourceTag) {
+    if (typeof chrome === 'undefined' || !chrome.runtime?.id) return;
     const keys = cachedKeys;
     chrome.runtime.sendMessage(
       {
@@ -1262,6 +1505,197 @@
     phrasesOpen = !phrasesOpen;
     document.getElementById('phrasesDrawer').classList.toggle('open', phrasesOpen);
   }
+
+  // ── Settings Panel ──────────────────────────────────────────────────────────
+
+  function openSettings() {
+    const k = cachedKeys;
+    document.getElementById('sp-apiKey').value     = k.apiKey     || '';
+    document.getElementById('sp-openaiKey').value  = k.openaiKey  || '';
+    document.getElementById('sp-geminiKey').value  = k.geminiKey  || '';
+    document.getElementById('sp-backendUrl').value = k.backendUrl || '';
+    if (k.glossary && typeof k.glossary === 'object') {
+      document.getElementById('sp-glossaryText').value =
+        Object.entries(k.glossary).map(([en, pt]) => `${en} = ${pt}`).join('\n');
+    }
+    document.getElementById('settingsOverlay').classList.add('open');
+    document.getElementById('settingsPanel').classList.add('open');
+  }
+
+  function closeSettings() {
+    document.getElementById('settingsOverlay').classList.remove('open');
+    document.getElementById('settingsPanel').classList.remove('open');
+  }
+
+  function spToggleKey(inputId, btn) {
+    const input = document.getElementById(inputId);
+    input.type  = input.type === 'password' ? 'text' : 'password';
+    btn.textContent = input.type === 'password' ? '👁' : '🙈';
+  }
+
+  function saveSettings() {
+    const apiKey     = document.getElementById('sp-apiKey').value.trim();
+    const openaiKey  = document.getElementById('sp-openaiKey').value.trim();
+    const geminiKey  = document.getElementById('sp-geminiKey').value.trim();
+    const backendUrl = document.getElementById('sp-backendUrl').value.trim().replace(/\/$/, '');
+
+    if (!apiKey && !openaiKey && !geminiKey && !backendUrl) {
+      spShowStatus('Insira ao menos uma chave ou URL', 'error');
+      return;
+    }
+
+    const glossaryRaw = document.getElementById('sp-glossaryText').value.trim();
+    const glossary = {};
+    if (glossaryRaw) {
+      for (const line of glossaryRaw.split('\n')) {
+        const parts = line.split('=');
+        if (parts.length >= 2) {
+          const en = parts[0].trim(), pt = parts.slice(1).join('=').trim();
+          if (en && pt) glossary[en] = pt;
+        }
+      }
+    }
+
+    cachedKeys = { apiKey, openaiKey, geminiKey, backendUrl, glossary };
+
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.sync.set({ apiKey, openaiKey, geminiKey, backendUrl, glossary, enabled: true }, () => {
+        spShowStatus('Salvo ✓');
+        setTimeout(closeSettings, 1000);
+      });
+    } else {
+      spShowStatus('Salvo na sessão ✓');
+      setTimeout(closeSettings, 1000);
+    }
+  }
+
+  function spShowStatus(msg, type = '') {
+    const el = document.getElementById('sp-status');
+    el.textContent = msg;
+    el.className = 'sp-status' + (type ? ' ' + type : '');
+    if (!type) setTimeout(() => { el.textContent = ''; }, 2500);
+  }
+
+  // ── Onboarding ──────────────────────────────────────────────────────────────
+
+  let obStep = 1, obProvider = null;
+
+  const OB_LABELS = {
+    anthropic: 'Anthropic API Key', openai: 'OpenAI API Key',
+    gemini: 'Google Gemini API Key', backend: 'Backend URL',
+  };
+  const OB_PLACEHOLDERS = {
+    anthropic: 'sk-ant-...', openai: 'sk-...', gemini: 'AIza...', backend: 'http://localhost:3001',
+  };
+
+  function obGoStep(n) {
+    document.getElementById('obStep' + obStep).classList.remove('active');
+    obStep = n;
+    document.getElementById('obStep' + obStep).classList.add('active');
+    [1, 2, 3].forEach(i =>
+      document.getElementById('obDot' + i).classList.toggle('active', i <= n)
+    );
+    if (n === 3 && obProvider) {
+      document.getElementById('obKeyLabel').textContent = OB_LABELS[obProvider];
+      const inp = document.getElementById('obKeyInput');
+      inp.placeholder = OB_PLACEHOLDERS[obProvider];
+      inp.type = obProvider === 'backend' ? 'text' : 'password';
+      const res = document.getElementById('obTestResult');
+      res.className = 'ob-test-result';
+    }
+  }
+
+  function obSelectProvider(p) {
+    obProvider = p;
+    document.querySelectorAll('.ob-pcard').forEach(c => c.classList.remove('selected'));
+    document.getElementById('obCard-' + p).classList.add('selected');
+    document.getElementById('obStep2Next').disabled = false;
+  }
+
+  async function obTestKey() {
+    const val = document.getElementById('obKeyInput').value.trim();
+    const btn = document.getElementById('obTestBtn');
+    if (!val) { obShowTestResult('error', 'Insira a chave antes de testar.'); return; }
+    btn.disabled = true; btn.textContent = '⏳ Testando...';
+    const sample = 'Hello, how are you today?';
+    try {
+      let translation = '';
+      if (obProvider === 'anthropic') {
+        const r = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': val, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+          body: JSON.stringify({ model: 'claude-haiku-4-5-20251001', max_tokens: 80, messages: [{ role: 'user', content: 'Translate to Brazilian Portuguese. Return ONLY the translation:\n\n' + sample }] }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${r.status}`); }
+        translation = (await r.json()).content[0].text.trim();
+      } else if (obProvider === 'openai') {
+        const r = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + val },
+          body: JSON.stringify({ model: 'gpt-4o-mini', max_tokens: 80, messages: [{ role: 'system', content: 'Translate English to Brazilian Portuguese. Return ONLY the translation.' }, { role: 'user', content: sample }] }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${r.status}`); }
+        translation = (await r.json()).choices[0].message.content.trim();
+      } else if (obProvider === 'gemini') {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${val}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contents: [{ parts: [{ text: 'Translate to Brazilian Portuguese. Return ONLY the translation:\n\n' + sample }] }], generationConfig: { maxOutputTokens: 80 } }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.error?.message || `HTTP ${r.status}`); }
+        translation = (await r.json()).candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+      } else if (obProvider === 'backend') {
+        const r = await fetch(val.replace(/\/$/, '') + '/api/health');
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        translation = 'Backend respondeu com OK ✓';
+      }
+      obShowTestResult('ok', '✓ Tradução: "' + translation + '"');
+    } catch (err) {
+      obShowTestResult('error', '✗ ' + err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = '🧪 Testar chave';
+    }
+  }
+
+  function obShowTestResult(type, msg) {
+    const el = document.getElementById('obTestResult');
+    el.textContent = msg; el.className = 'ob-test-result ' + type;
+  }
+
+  function obSaveAndClose() {
+    const val = document.getElementById('obKeyInput').value.trim();
+    if (!val) { obShowTestResult('error', 'Insira a chave antes de continuar.'); return; }
+    const toSave = { enabled: true };
+    if (obProvider === 'anthropic') toSave.apiKey    = val;
+    if (obProvider === 'openai')    toSave.openaiKey = val;
+    if (obProvider === 'gemini')    toSave.geminiKey = val;
+    if (obProvider === 'backend')   toSave.backendUrl = val.replace(/\/$/, '');
+
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.sync.set(toSave, () => {
+        loadKeys().then(() => obClose());
+      });
+    } else {
+      Object.assign(cachedKeys, toSave);
+      obClose();
+    }
+  }
+
+  function obClose() {
+    document.getElementById('obOverlay').classList.remove('open');
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      chrome.storage.local.set({ onboardingComplete: true });
+    }
+  }
+
+  // Show onboarding if no keys configured
+  loadKeys().then(keys => {
+    const hasKeys = keys.apiKey || keys.openaiKey || keys.geminiKey || keys.backendUrl;
+    if (!hasKeys) {
+      // Small delay so the app renders first
+      setTimeout(() => document.getElementById('obOverlay').classList.add('open'), 400);
+    }
+  });
 </script>
 
 </body>
