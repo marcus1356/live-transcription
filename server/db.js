@@ -1,19 +1,20 @@
 'use strict';
-const Database = require('better-sqlite3');
+// Uses Node.js 22+ built-in SQLite — no native compilation needed
+const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data.sqlite');
-const db = new Database(DB_PATH);
+const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    email        TEXT    UNIQUE NOT NULL,
-    password_hash TEXT   NOT NULL,
-    name         TEXT    NOT NULL,
-    plan         TEXT    NOT NULL DEFAULT 'free',
-    is_admin     INTEGER NOT NULL DEFAULT 0,
-    created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    email         TEXT    UNIQUE NOT NULL,
+    password_hash TEXT    NOT NULL,
+    name          TEXT    NOT NULL,
+    plan          TEXT    NOT NULL DEFAULT 'free',
+    is_admin      INTEGER NOT NULL DEFAULT 0,
+    created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now'))
   );
   CREATE TABLE IF NOT EXISTS daily_usage (
     user_id      INTEGER NOT NULL,
@@ -78,10 +79,10 @@ module.exports = {
   getStats() {
     const today = new Date().toISOString().slice(0, 10);
     return {
-      totalUsers: db.prepare('SELECT COUNT(*) as n FROM users').get().n,
+      totalUsers:        db.prepare('SELECT COUNT(*) as n FROM users').get().n,
       todayTranslations: db.prepare('SELECT COALESCE(SUM(translations),0) as n FROM daily_usage WHERE date = ?').get(today).n,
       totalTranslations: db.prepare('SELECT COALESCE(SUM(translations),0) as n FROM daily_usage').get().n,
-      byPlan: db.prepare("SELECT plan, COUNT(*) as n FROM users GROUP BY plan").all(),
+      byPlan:            db.prepare('SELECT plan, COUNT(*) as n FROM users GROUP BY plan').all(),
     };
   },
 };
